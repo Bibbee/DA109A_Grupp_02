@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # Load variables from .env
 load_dotenv()
-API_KEY = os.getenv("TMDB_API_KEY")  # reads from .env
+API_KEY = os.getenv("API_KEY")  # reads from .env
 BASE_URL = "https://api.themoviedb.org/3"
 
 
