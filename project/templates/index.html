@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Movie Search</title>
+    <!-- Use url_for for static in Flask -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1>Movie Search</h1>
+
+    <form method="get" action="/" class="search-form">
+        <input type="text" name="q" placeholder="Search for a movie..." value="{{ query }}">
+        <button type="submit">Search</button>
+    </form>
+
+    {% if query and not movies %}
+        <p>No movies found for "<strong>{{ query }}</strong>".</p>
+    {% endif %}
+
+    {% if movies %}
+        <div class="results">
+            {% for movie in movies %}
+                <div class="movie-card">
+                    {% if movie.poster_url %}
+                        <img src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
+                    {% else %}
+                        <div class="no-poster">No poster</div>
+                    {% endif %}
+                    <div class="movie-info">
+                        <h2>{{ movie.title }}</h2>
+                        <p><strong>Release:</strong> {{ movie.release_date or "Unknown" }}</p>
+                        <p><strong>Rating:</strong> {{ movie.rating }}</p>
+                        <p class="overview">{{ movie.overview }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+</div>
+</body>
+</html>
