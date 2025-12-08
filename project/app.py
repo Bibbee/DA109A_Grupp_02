@@ -39,7 +39,7 @@ def index():
                     "title": m.get("title"),
                     "release_date": m.get("release_date"),
                     "rating": m.get("vote_average"),
-                    "overview": m.get("overview"),
+                    ##"overview": m.get("overview"),
                     "poster_url": build_poster_url(m.get("poster_path")),
                 })
         else:
