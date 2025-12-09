@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <title>Register</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <div class="auth-page">
     <div class="container">
         <div class="auth-card">
-            <h1 class="auth-title">Login</h1>
-            <p class="auth-subtitle">Sign in to browse and save your favorite movies.</p>
+            <h1 class="auth-title">Create account</h1>
+            <p class="auth-subtitle">Make an account to start building your movie list.</p>
 
             {% if error %}
                 <p class="error-message">{{ error }}</p>
@@ -19,25 +19,31 @@
             <form method="post" class="auth-form">
                 <label class="auth-label">
                     Username
-                    <input type="text" name="username" placeholder="Enter username">
+                    <input type="text" name="username" placeholder="Choose a username">
                 </label>
 
                 <label class="auth-label">
                     Password
-                    <input type="password" name="password" placeholder="Enter password">
+                    <input type="password" name="password" placeholder="Choose a password">
+                </label>
+
+                <label class="auth-label">
+                    Confirm password
+                    <input type="password" name="confirm" placeholder="Repeat password">
                 </label>
 
                 <button type="submit" class="primary-button full-width">
-                    Login
+                    Create account
                 </button>
             </form>
 
             <p class="auth-footer">
-                Don’t have an account?
-                <a href="{{ url_for('register') }}">Register here</a>.
+                Already have an account?
+                <a href="{{ url_for('login') }}">Login here</a>.
             </p>
         </div>
     </div>
 </div>
 </body>
 </html>
+
