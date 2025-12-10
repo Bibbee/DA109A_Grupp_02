@@ -53,9 +53,10 @@ h1 {
 
 /* === Movie Results Grid === */
 
+/* Det var denna man behövde ändra för att en poster inte skulle bli stor */
 .results {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(230px, 230px));
     gap: 20px;
 }
 
