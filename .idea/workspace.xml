@@ -5,9 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="43275973-cce7-4ee9-b4ba-55aecd83a99c" name="Changes" comment="tog bort overview">
-      <change afterPath="$PROJECT_DIR$/project/templates/wrapped.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/project/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/project/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/project/static/style.css" beforeDir="false" afterPath="$PROJECT_DIR$/project/static/style.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/project/templates/movies.html" beforeDir="false" afterPath="$PROJECT_DIR$/project/templates/movies.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/project/users.json" beforeDir="false" afterPath="$PROJECT_DIR$/project/users.json" afterDir="false" />
     </list>
@@ -96,7 +95,7 @@
       <workItem from="1764677447063" duration="485000" />
       <workItem from="1765204330656" duration="3393000" />
       <workItem from="1765375396149" duration="2586000" />
-      <workItem from="1765390065544" duration="1965000" />
+      <workItem from="1765390065544" duration="4220000" />
     </task>
     <task id="LOCAL-00001" summary="made an env">
       <option name="closed" value="true" />

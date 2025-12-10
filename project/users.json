@@ -51,6 +51,62 @@
         "poster_url": "https://image.tmdb.org/t/p/w342/xR2b19JyLr8ssLzIvaXBOkGkghm.jpg",
         "release_date": "1999-04-14",
         "rating": "5.5"
+      },
+      {
+        "id": "1333100",
+        "title": "Attack on Titan: THE LAST ATTACK",
+        "poster_url": "https://image.tmdb.org/t/p/w342/wgwldDDlTDDMrluOMkpSA8lyKjv.jpg",
+        "release_date": "2024-11-08",
+        "rating": "8.8"
+      },
+      {
+        "id": "340382",
+        "title": "Attack on Titan II: End of the World",
+        "poster_url": "https://image.tmdb.org/t/p/w342/l9cJ5PKEkVJb6YUCiURtcMbTQ5D.jpg",
+        "release_date": "2015-09-01",
+        "rating": "6.189"
+      },
+      {
+        "id": "330081",
+        "title": "Attack on Titan: Wings of Freedom",
+        "poster_url": "https://image.tmdb.org/t/p/w342/vMoqVBW3LN5EnA9A3zA91tt0oY.jpg",
+        "release_date": "2015-06-27",
+        "rating": "8.126"
+      },
+      {
+        "id": "714194",
+        "title": "Attack on Titan: Chronicle",
+        "poster_url": "https://image.tmdb.org/t/p/w342/kXUSsxQ2J3QVGkG1thmhI1FadKd.jpg",
+        "release_date": "2020-07-17",
+        "rating": "7.531"
+      },
+      {
+        "id": "1033219",
+        "title": "Attack on Titan",
+        "poster_url": "https://image.tmdb.org/t/p/w342/aQQ9oRO273ImFTAmY4RR3kPTkff.jpg",
+        "release_date": "2022-09-30",
+        "rating": "6.0"
+      },
+      {
+        "id": "1486516",
+        "title": "Attack on Titan: Requiem",
+        "poster_url": "https://image.tmdb.org/t/p/w342/l1IrdT6ou25RfUHUwBiZ4sCcVFk.jpg",
+        "release_date": "2025-01-15",
+        "rating": "0.0"
+      },
+      {
+        "id": "492999",
+        "title": "Attack on Titan: The Roar of Awakening",
+        "poster_url": "https://image.tmdb.org/t/p/w342/tLkdCvfmTOvxirrpSaaOBJD7qsU.jpg",
+        "release_date": "2018-01-13",
+        "rating": "8.336"
+      },
+      {
+        "id": "1221893",
+        "title": "Attack on Titan: The Musical",
+        "poster_url": "https://image.tmdb.org/t/p/w342/kMvJWIQerwQXmlaUJab1h7nWIIf.jpg",
+        "release_date": "2023-11-05",
+        "rating": "8.0"
       }
     ]
   }
