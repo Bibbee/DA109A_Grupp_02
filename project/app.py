@@ -4,7 +4,8 @@
 # request = read data from forms and URLs
 # redirect, url_for = move the user to another page
 # session = remember which user is logged in
-# jsonify = send back small JSON messages (for our toast popup) 
+# jsonify = send back small JSON messages (for our toast popup)
+from fastapi import params
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 
 # requests = used to call the TMDB API (ask for movie data)
@@ -252,6 +253,53 @@ def add_favorite():
     # fallback om man skulle POST:a utan JS
     return redirect(url_for("movies"))
 
+# Wrapped functions
+def get_movie_details(movie_id):
+    url = f"{BASE_URL}/movie/{movie_id}"
+    params = {"api_key": API_KEY}
+
+    response = requests.get(url, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "runtime": data.get("runtime", 0),
+            "genres": [genre["name"] for genre in data.get("genres", [])],
+        }
+    return {"runtime": 0, "genres": []}
+
+@app.route("/wrapped")
+@login_required
+def wrapped():
+    username = session["username"]
+    user = find_user(username)
+    favorites = user.get("favorites", []) if user else []
+
+    total_minutes = 0
+    all_genres = []
+
+    # Loop through each favorite movie to get details
+    for fav in favorites:
+        details = get_movie_details(fav["id"])
+        total_minutes += details["runtime"]
+        all_genres.extend(details["genres"])
+
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+
+    most_comon_genre = None
+    if all_genres:
+        from collections import Counter
+        genre_counts = Counter(all_genres)
+        most_common_genre = genre_counts.most_common(1)[0][0]
+
+    return render_template(
+        "wrapped.html",
+        hours=hours,
+        minutes=minutes,
+        most_common_genre=most_common_genre,
+        total_movies=len(favorites)
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
