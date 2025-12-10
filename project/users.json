@@ -1,0 +1,22 @@
+[
+  {
+    "username": "idk",
+    "password": "idk",
+    "favorites": [
+      {
+        "id": "1233413",
+        "title": "Sinners",
+        "poster_url": "https://image.tmdb.org/t/p/w342/qTvFWCGeGXgBRaINLY1zqgTPSpn.jpg",
+        "release_date": "2025-04-16",
+        "rating": "7.506"
+      },
+      {
+        "id": "13363",
+        "title": "The Man from Earth",
+        "poster_url": "https://image.tmdb.org/t/p/w342/V086R82gNgWrotaXZFO4JhdgB1.jpg",
+        "release_date": "2007-06-10",
+        "rating": "7.627"
+      }
+    ]
+  }
+]
