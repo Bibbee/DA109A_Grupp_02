@@ -51,5 +51,10 @@
         "rating": "0.0"
       }
     ]
+  },
+  {
+    "username": "dabzen",
+    "password": "123",
+    "favorites": []
   }
 ]
