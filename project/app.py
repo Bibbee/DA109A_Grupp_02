@@ -33,7 +33,7 @@ DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
 def build_poster_url(poster_path, size="w342"):
     if not poster_path:
         return None
-    return f"https://image.tmdb.org/t/p/{size}{poster_path}"
+    return f"https://image.tmdb.org/t/p/{size}{poster_path}" 
 
 
 def search_movies(query):
