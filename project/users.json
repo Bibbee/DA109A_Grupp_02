@@ -81,13 +81,6 @@
         "rating": "7.531"
       },
       {
-        "id": "1033219",
-        "title": "Attack on Titan",
-        "poster_url": "https://image.tmdb.org/t/p/w342/aQQ9oRO273ImFTAmY4RR3kPTkff.jpg",
-        "release_date": "2022-09-30",
-        "rating": "6.0"
-      },
-      {
         "id": "1486516",
         "title": "Attack on Titan: Requiem",
         "poster_url": "https://image.tmdb.org/t/p/w342/l1IrdT6ou25RfUHUwBiZ4sCcVFk.jpg",
@@ -107,6 +100,81 @@
         "poster_url": "https://image.tmdb.org/t/p/w342/kMvJWIQerwQXmlaUJab1h7nWIIf.jpg",
         "release_date": "2023-11-05",
         "rating": "8.0"
+      },
+      {
+        "id": "54320",
+        "title": "Love",
+        "poster_url": "https://image.tmdb.org/t/p/w342/ghKqC61MuwJIY8Wh61258fxpcRV.jpg",
+        "release_date": "2011-02-02",
+        "rating": "5.5"
+      },
+      {
+        "id": "292431",
+        "title": "Love",
+        "poster_url": "https://image.tmdb.org/t/p/w342/jx5rG229bzPzBgCXGslje75Y85x.jpg",
+        "release_date": "2015-07-15",
+        "rating": "6.5"
+      },
+      {
+        "id": "138289",
+        "title": "Money or Love",
+        "poster_url": "https://image.tmdb.org/t/p/w342/cbf1YVagIXPgAEdN8CWsi3qzhlz.jpg",
+        "release_date": "2011-10-13",
+        "rating": "5.771"
+      },
+      {
+        "id": "488659",
+        "title": "Love",
+        "poster_url": "https://image.tmdb.org/t/p/w342/9Rl69IGFFroA5Bs3raSR7N8nqI4.jpg",
+        "release_date": "1982-07-01",
+        "rating": "4.542"
+      },
+      {
+        "id": "663127",
+        "title": "Love",
+        "poster_url": "https://image.tmdb.org/t/p/w342/nLus3Lg9j43zIFzv0QjUyrSloE5.jpg",
+        "release_date": "2008-02-14",
+        "rating": "4.667"
+      }
+    ]
+  },
+  {
+    "username": "123",
+    "password": "123",
+    "favorites": [
+      {
+        "id": "27205",
+        "title": "Inception",
+        "poster_url": "https://image.tmdb.org/t/p/w342/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg",
+        "release_date": "2010-07-15",
+        "rating": "8.4"
+      }
+    ]
+  },
+  {
+    "username": "hejhej",
+    "password": "123",
+    "favorites": [
+      {
+        "id": "268",
+        "title": "Batman",
+        "poster_url": "https://image.tmdb.org/t/p/w342/cij4dd21v2Rk2YtUQbV5kW69WB2.jpg",
+        "release_date": "1989-06-21",
+        "rating": "7.237"
+      },
+      {
+        "id": "2661",
+        "title": "Batman",
+        "poster_url": "https://image.tmdb.org/t/p/w342/zzoPxWHnPa0eyfkMLgwbNvdEcVF.jpg",
+        "release_date": "1966-07-30",
+        "rating": "6.404"
+      },
+      {
+        "id": "125249",
+        "title": "Batman",
+        "poster_url": "https://image.tmdb.org/t/p/w342/AvzD3mrtokIzZOiV6zAG7geIo6F.jpg",
+        "release_date": "1943-07-16",
+        "rating": "6.4"
       }
     ]
   }
