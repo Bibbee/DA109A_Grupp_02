@@ -18,6 +18,7 @@
     <form method="get" action="{{ url_for('movies') }}" class="search-form">
         <input type="text" name="q" placeholder="Search for a movie..." value="{{ query }}">
         <button type="submit">Search</button>
+        <a href="{{ url_for('wrapped') }}" class="btn-search">Show Wrapped</a>
     </form>
 
     {% if query and not movies %}
