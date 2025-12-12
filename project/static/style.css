@@ -75,8 +75,9 @@ h1 {
 }
 
 .movie-card img {
-  width: 100%;
-  height: auto;
+    width: 100%;
+    height: 330px;
+    object-fit: cover;
 }
 
 .no-poster {
@@ -91,7 +92,10 @@ h1 {
 }
 
 .movie-info {
-  padding: 15px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .movie-info h2 {
@@ -276,7 +280,10 @@ h1 {
 
 .auth-footer a:hover { text-decoration: underline; }
 
-/* === Buttons === */
+.add-to-list-form {
+    margin-top: auto;
+}
+
 .add-to-list-btn {
   margin-top: 10px;
   width: 100%;

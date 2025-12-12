@@ -53,7 +53,7 @@ def search_movies(query):
 
     if response.status_code == 200:
         data = response.json()
-        results = data.get("results", [])[:10]
+        results = data.get("results", [])[:16]
 
         for m in results:
             movies.append({
