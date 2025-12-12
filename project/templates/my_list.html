@@ -2,32 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Movie Search</title>
+    <title>My List</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <div class="container">
-    <h1>Movie Search</h1>
+    <h1>My List</h1>
 
     <div class="user-bar">
         <span class="user-label">Logged in as <strong>{{ username }}</strong></span>
-        <a href="{{ url_for('my_list') }}" class="mylist-btn">My list</a>
+        <a href="{{ url_for('movies') }}" class="back-btn">Back to search</a>
         <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
     </div>
 
-    <form method="get" action="{{ url_for('movies') }}" class="search-form">
-        <input type="text" name="q" placeholder="Search for a movie..." value="{{ query }}">
-        <button type="submit">Search</button>
-        <a href="{{ url_for('wrapped') }}" class="btn-search">Show Wrapped</a>
-    </form>
-
-    {% if query and not movies %}
-        <p>No movies found for "<strong>{{ query }}</strong>".</p>
-    {% endif %}
-
-    {% if movies %}
+    {% if favorites %}
         <div class="results">
-            {% for movie in movies %}
+            {% for movie in favorites %}
                 <div class="movie-card">
                     {% if movie.poster_url %}
                         <img src="{{ movie.poster_url }}" alt="{{ movie.title }} poster">
@@ -38,24 +28,25 @@
                         <h2>{{ movie.title }}</h2>
                         <p><strong>Release:</strong> {{ movie.release_date or "Unknown" }}</p>
                         <p><strong>Rating:</strong> {{ movie.rating }}</p>
-                        <p class="overview">{{ movie.overview }}</p>
 
                         <form method="post"
-                              action="{{ url_for('add_favorite') }}"
-                              class="add-to-list-form">
+                              action="{{ url_for('remove_favorite') }}"
+                              class="remove-from-list-form">
                             <input type="hidden" name="id" value="{{ movie.id }}">
                             <input type="hidden" name="title" value="{{ movie.title }}">
                             <input type="hidden" name="poster_url" value="{{ movie.poster_url }}">
                             <input type="hidden" name="release_date" value="{{ movie.release_date }}">
                             <input type="hidden" name="rating" value="{{ movie.rating }}">
-                            <button type="submit" class="add-to-list-btn">
-                                Add to my list
+                            <button type="submit" class="remove-btn">
+                                Remove
                             </button>
                         </form>
                     </div>
                 </div>
             {% endfor %}
         </div>
+    {% else %}
+        <p>You have no movies in your list yet. Go ahead and add some!</p>
     {% endif %}
 </div>
 
@@ -64,4 +55,3 @@
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
-

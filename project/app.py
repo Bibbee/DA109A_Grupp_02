@@ -5,7 +5,6 @@
 # redirect, url_for = move the user to another page
 # session = remember which user is logged in
 # jsonify = send back small JSON messages (for our toast popup)
-from fastapi import params
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 
 # requests = used to call the TMDB API (ask for movie data)
@@ -230,7 +229,7 @@ def add_favorite():
     username = session["username"]
     user = find_user(username)
     if not user:
-        # om nåt är helt fel, skicka 400
+        # om nåt är helt fel, skicka 400 (bad request, ogiltig användare)
         return jsonify({"status": "error", "message": "User not found"}), 400
 
     if "favorites" not in user:
@@ -252,6 +251,54 @@ def add_favorite():
 
     # fallback om man skulle POST:a utan JS
     return redirect(url_for("movies"))
+
+#--- NEW ROUTE FOR: MY LIST---
+@app.route("/my-list", methods=["GET"])
+@login_required
+def my_list():
+
+    # Gathers the username of the user.
+    username = session["username"]
+
+    # This one loads user data from our JSON
+    user = find_user(username)
+    favorites = user.get("favorites", []) if user else []
+
+    # Render the my_list.html with the user's current info
+    return render_template(
+        "my_list.html",
+        username=username,
+        favorites=favorites,
+    )
+
+#--- REMOVING MOVIES ROUTE---
+@app.route("/remove_favorite", methods=["POST"])
+@login_required
+def remove_favorite():
+    # Decide which movie to remove based on id.
+    movie_id = request.form.get("id")
+
+    # Gathers username of the logged in user
+    username = session["username"]
+    user = find_user(username)
+
+    if not user:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"status": "error", "message": "User not found"}), 400
+        return redirect(url_for("my_list"))
+
+    
+    favorites = user.get("favorites", []) # All the current favorite movies
+    new_favorites = [f for f in favorites if str(f.get("id")) != str(movie_id)]
+    user["favorites"] = new_favorites
+    update_user(user) # Save the changes to JSON
+
+    # Javascript call: ensures the cards are succesfully removed by with the animation thing; no need to reload the page now. 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"status": "ok"})
+
+    return redirect(url_for("my_list"))
+
 
 # Wrapped functions
 def get_movie_details(movie_id):
