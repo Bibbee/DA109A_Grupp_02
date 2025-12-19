@@ -236,12 +236,16 @@ def add_favorite():
         user["favorites"] = []
 
     if not any(str(f["id"]) == str(movie_id) for f in user["favorites"]):
+        details = get_movie_details(movie_id)
+
         user["favorites"].append({
             "id": movie_id,
             "title": title,
             "poster_url": poster_url,
             "release_date": release_date,
             "rating": rating,
+            "runtime": details["runtime"], #####
+            "genres": details["genres"],   #####
         })
         update_user(user)
 
@@ -310,8 +314,8 @@ def get_movie_details(movie_id):
     if response.status_code == 200:
         data = response.json()
         return {
-            "runtime": data.get("runtime", 0),
-            "genres": [genre["name"] for genre in data.get("genres", [])],
+            "runtime": data.get("runtime", 0) or 0,
+            "genres": [g["name"] for g in data.get("genres", [])],
         }
     return {"runtime": 0, "genres": []}
 
@@ -325,20 +329,44 @@ def wrapped():
     total_minutes = 0
     all_genres = []
 
-    # Loop through each favorite movie to get details
+    # så den ALLTID finns (ingen crash)
+    most_common_genre = None
+
+    updated = False
+
     for fav in favorites:
+        runtime = fav.get("runtime")
+        genres = fav.get("genres")
+
+        # Om vi redan sparat detaljer → använd direkt
+        if runtime is not None and genres is not None:
+            total_minutes += int(runtime or 0)
+            all_genres.extend(genres)
+            continue
+
+        # Annars: hämta en gång från TMDB
         details = get_movie_details(fav["id"])
-        total_minutes += details["runtime"]
-        all_genres.extend(details["genres"])
+        runtime = int(details.get("runtime") or 0)
+        genres = details.get("genres", [])
+
+        total_minutes += runtime
+        all_genres.extend(genres)
+
+        # Backfill så nästa gång går snabbt
+        fav["runtime"] = runtime
+        fav["genres"] = genres
+        updated = True
+
+    if updated and user:
+        update_user(user)
 
     hours = total_minutes // 60
     minutes = total_minutes % 60
 
-    most_comon_genre = None
+
     if all_genres:
         from collections import Counter
-        genre_counts = Counter(all_genres)
-        most_common_genre = genre_counts.most_common(1)[0][0]
+        most_common_genre = Counter(all_genres).most_common(1)[0][0]
 
     return render_template(
         "wrapped.html",
