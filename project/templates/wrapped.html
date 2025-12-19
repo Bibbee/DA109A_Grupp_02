@@ -1,31 +1,104 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Your Movie Wrapped</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Movie Wrapped</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='wrapped.css') }}">
 </head>
 <body>
-<div class="container mt-5 text-center">
-    <h1>Your Movie Wrapped 🎬</h1>
 
-    <div class="card mt-4" style="max-width: 500px; margin: 0 auto;">
-        <div class="card-body">
-            <h3>Total Watch Time</h3>
-            <p class="display-4">{{ hours }}h {{ minutes }}m</p>
+{% set total_minutes = (hours * 60) + minutes %}
+{% set total_days = (total_minutes / 60) / 24 %}
 
-            <hr>
+{# Message logic (NO JSON needed) #}
+{% if total_movies >= 50 %}
+  {% set tier_title = "PROFESSIONAL MOVIE WATCHER" %}
+  {% set tier_text  = "A list worthy of a museum." %}
+{% elif total_movies >= 40 %}
+  {% set tier_title = "MOVIE FANATIC!" %}
+  {% set tier_text  = "You got taste, and it SHOWS!" %}
+{% elif total_movies >= 30 %}
+  {% set tier_title = "Movies are your thing" %}
+  {% set tier_text  = "And nothing is going to stop you." %}
+{% elif total_movies >= 20 %}
+  {% set tier_title = "Intense watcher!" %}
+  {% set tier_text  = "This is definitely worth bragging about." %}
+{% elif total_movies >= 10 %}
+  {% set tier_title = "Casually Watching" %}
+  {% set tier_text  = "And this is only the beginning of your journey." %}
+{% elif total_movies >= 5 %}
+  {% set tier_title = "Still so much... to explore!" %}
+  {% set tier_text  = "You're missing out on PEAK cinema. Get out there and explore!" %}
+{% else %}
+  {% set tier_title = "Just getting started" %}
+  {% set tier_text  = "Every legend starts somewhere. Keep watching!" %}
+{% endif %}
 
-            <h3>Most Common Genre</h3>
-            <p class="display-5">{{ most_common_genre or "No genres found" }}</p>
+<div class="progress-dots" aria-hidden="true">
+  <span class="dot active"></span>
+  <span class="dot"></span>
+  <span class="dot"></span>
+</div>
 
-            <hr>
+<section class="slide slide-1" data-slide="1">
+  <div class="wave">
+    <span></span><span></span><span></span>
+  </div>
 
-            <h3>Movies Watched</h3>
-            <p class="display-5">{{ total_movies }}</p>
-        </div>
+  <div class="slide-content">
+    <p class="kicker reveal">Your Movie Wrapped</p>
+
+    <h1 class="reveal">
+      You watched <span class="accent count-up" data-to="{{ hours }}">{{ hours }}</span> hours of movies.
+    </h1>
+
+    <p class="sub reveal">
+      That’s about <span class="pill count-up-days" data-days="{{ '%.1f'|format(total_days) }}">{{ '%.1f'|format(total_days) }}</span> days.
+      <span class="muted">Dang.</span>
+    </p>
+
+    <p class="hint reveal">Scroll ↓</p>
+  </div>
+</section>
+
+<section class="slide slide-2" data-slide="2">
+  <div class="slide-content">
+    <p class="kicker reveal">Slide 2</p>
+
+    <h2 class="reveal">
+      And guess what? You watched
+      <span class="accent count-up" data-to="{{ total_movies }}">{{ total_movies }}</span> movies.
+    </h2>
+
+    <div class="tier-card reveal">
+      <h3 class="tier-title">{{ tier_title }}</h3>
+      <p class="tier-text">{{ tier_text }}</p>
     </div>
 
-    <a href="{{ url_for('movies') }}" class="btn btn-secondary mt-4">Back to Movies</a>
-</div>
+    <p class="hint reveal">Scroll ↓</p>
+  </div>
+</section>
+
+<section class="slide slide-3" data-slide="3">
+  <div class="slide-content">
+    <p class="kicker reveal">Slide 3</p>
+
+    <h2 class="reveal">Your top genre is:</h2>
+
+    <div class="genre-chip reveal">
+      {{ most_common_genre or "Unknown" }}
+    </div>
+
+    <p class="sub reveal">
+      This genre basically owns your watch history.
+    </p>
+
+    <a class="back-btn reveal" href="{{ url_for('movies') }}">Back to Movies</a>
+  </div>
+</section>
+
+<script src="{{ url_for('static', filename='wrapped.js') }}"></script>
 </body>
 </html>
+
