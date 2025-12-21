@@ -66,6 +66,34 @@ h1 {
   background: #2563eb;
 }
 
+/* === Sort Controls (My List) === */
+.sort-controls {
+  display: flex;
+  justify-content: left;
+  align-items: left;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.sort-controls label {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+#sort-dropdown {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+#sort-dropdown:hover {
+  background: #475569;
+}
+
 /* === Movie Results Grid === */
 .results {
   display: grid;

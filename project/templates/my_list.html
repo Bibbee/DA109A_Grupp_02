@@ -16,6 +16,15 @@
     </div>
 
     {% if favorites %}
+        <div class="sort-controls">
+            <label for="sort-dropdown"><strong>Sort by:</strong></label>
+            <select id="sort-dropdown" onchange="changeSortOrder(this.value)">
+                <option value="added" {% if sort_by == 'added' %}selected{% endif %}>Added to List</option>
+                <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating</option>
+                <option value="release" {% if sort_by == 'release' %}selected{% endif %}>Release Date</option>
+            </select>
+        </div>
+
         <div class="results">
             {% for movie in favorites %}
                 <div class="movie-card">
@@ -29,6 +38,12 @@
                         <p><strong>Release:</strong> {{ movie.release_date or "Unknown" }}</p>
                         <p><strong>Director:</strong> {{ movie.director or "Unknown" }}</p>
                         <p><strong>Rating:</strong> {{ movie.rating }}</p>
+                        {% if movie.runtime %}
+                            <p><strong>Runtime:</strong> {{ movie.runtime|format_runtime }}</p>
+                        {% endif %}
+                        {% if movie.genres %}
+                            <p><strong>Genres:</strong> {{ movie.genres }}</p>
+                        {% endif %}
 
                         <form method="post"
                               action="{{ url_for('remove_favorite') }}"
@@ -52,6 +67,12 @@
 </div>
 
 <div id="toast-container" class="toast-container"></div>
+
+<script>
+function changeSortOrder(sortValue) {
+    window.location.href = "{{ url_for('my_list') }}?sort=" + sortValue;
+}
+</script>
 
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

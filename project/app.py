@@ -30,6 +30,25 @@ BASE_URL = "https://api.themoviedb.org/3" # base URL for TMDB requests
 DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
 
 
+def format_runtime(minutes):
+    """Convert minutes to human readable format (e.g., '2 hours 20 minutes' or '45 minutes')"""
+    if not minutes:
+        return "Unknown"
+    minutes = int(minutes)
+    if minutes >= 60:
+        hours = minutes // 60
+        remaining_minutes = minutes % 60
+        if remaining_minutes == 0:
+            return f"{hours} hour{'s' if hours > 1 else ''}"
+        else:
+            return f"{hours} hour{'s' if hours > 1 else ''} {remaining_minutes} minute{'s' if remaining_minutes > 1 else ''}"
+    else:
+        return f"{minutes} minute{'s' if minutes > 1 else ''}"
+
+
+app.jinja_env.filters['format_runtime'] = format_runtime
+
+
 def build_poster_url(poster_path, size="w342"):
     if not poster_path:
         return None
@@ -53,6 +72,24 @@ def get_director(movie_id):
     return None
 
 
+def get_movie_details(movie_id):
+    """Fetch full movie details from TMDB including runtime and genres.
+    
+    Returns a dict with runtime and genres or empty dict if not found."""
+    url = f"{BASE_URL}/movie/{movie_id}"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        data = response.json()
+        genres = [g.get("name") for g in data.get("genres", [])]
+        return {
+            "runtime": data.get("runtime"),
+            "genres": genres
+        }
+    return {"runtime": None, "genres": []}
+
+
 def search_movies(query):
     """Ask TMDB for movies that match the search text.
 
@@ -74,6 +111,7 @@ def search_movies(query):
 
         for m in results:
             director = get_director(m.get("id"))
+            details = get_movie_details(m.get("id"))
             movies.append({
                 "id": m.get("id"),
                 "title": m.get("title"),
@@ -81,6 +119,8 @@ def search_movies(query):
                 "rating": m.get("vote_average"),
                 "poster_url": build_poster_url(m.get("poster_path")),
                 "director": director,
+                "runtime": details.get("runtime"),
+                "genres": details.get("genres"),
             })
     else:
         print("TMDB error:", response.status_code, response.text)
@@ -128,6 +168,7 @@ def search_movies_by_director(director_name):
         directed_movies = [m for m in crew if m.get("job") == "Director"][:16]
         
         for m in directed_movies:
+            details = get_movie_details(m.get("id"))
             movies.append({
                 "id": m.get("id"),
                 "title": m.get("title"),
@@ -135,6 +176,8 @@ def search_movies_by_director(director_name):
                 "rating": m.get("vote_average"),
                 "poster_url": build_poster_url(m.get("poster_path")),
                 "director": actual_director_name,
+                "runtime": details.get("runtime"),
+                "genres": details.get("genres"),
             })
     
     return movies
@@ -304,6 +347,8 @@ def add_favorite():
     release_date = request.form.get("release_date")
     rating = request.form.get("rating")
     director = request.form.get("director")
+    runtime = request.form.get("runtime")
+    genres = request.form.get("genres")
 
     username = session["username"]
     user = find_user(username)
@@ -322,6 +367,8 @@ def add_favorite():
             "release_date": release_date,
             "rating": rating,
             "director": director,
+            "runtime": runtime,
+            "genres": genres,
         })
         update_user(user)
 
@@ -343,12 +390,23 @@ def my_list():
     # This one loads user data from our JSON
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
+    
+    # Get sort parameter from query string, default to "added"
+    sort_by = request.args.get("sort", "added")
+    
+    # Sort the favorites based on the selected option
+    if sort_by == "rating":
+        favorites = sorted(favorites, key=lambda x: float(x.get("rating", 0)), reverse=True)
+    elif sort_by == "release":
+        favorites = sorted(favorites, key=lambda x: x.get("release_date", ""), reverse=True)
+    # "added" keeps the original order (no sorting needed)
 
     # Render the my_list.html with the user's current info
     return render_template(
         "my_list.html",
         username=username,
         favorites=favorites,
+        sort_by=sort_by,
     )
 
 #--- REMOVING MOVIES ROUTE---
