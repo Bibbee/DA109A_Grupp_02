@@ -22,14 +22,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Mark slide active + run its animations
-  function activateSlide(slide) {
-    slides.forEach(s => s.classList.remove("is-active"));
-    slide.classList.add("is-active");
+  let lastActiveSlide = null;
+  let lastActiveDot = null;
 
-    // update dots
+  function activateSlide(slide) {
+    // Only update if different slide
+    if (lastActiveSlide === slide) return;
+
+    if (lastActiveSlide) lastActiveSlide.classList.remove("is-active");
+    slide.classList.add("is-active");
+    lastActiveSlide = slide;
+
+    // update dots efficiently
     const idx = Number(slide.dataset.slide) - 1;
-    dots.forEach(d => d.classList.remove("active"));
-    if (dots[idx]) dots[idx].classList.add("active");
+    if (lastActiveDot) lastActiveDot.classList.remove("active");
+    if (dots[idx]) {
+      dots[idx].classList.add("active");
+      lastActiveDot = dots[idx];
+    }
 
     // run count-ups in this slide only
     slide.querySelectorAll(".count-up").forEach(animateCount);

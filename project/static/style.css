@@ -44,6 +44,15 @@ h1 {
   color: white;
 }
 
+.search-form select {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: white;
+  cursor: pointer;
+}
+
 .search-form button {
   padding: 10px 18px;
   border: none;

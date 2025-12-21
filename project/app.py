@@ -36,6 +36,23 @@ def build_poster_url(poster_path, size="w342"):
     return f"https://image.tmdb.org/t/p/{size}{poster_path}" 
 
 
+def get_director(movie_id):
+    """Fetch the director of a movie from TMDB credits endpoint.
+    
+    Returns the director's name or None if not found."""
+    url = f"{BASE_URL}/movie/{movie_id}/credits"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        data = response.json()
+        crew = data.get("crew", [])
+        for person in crew:
+            if person.get("job") == "Director":
+                return person.get("name")
+    return None
+
+
 def search_movies(query):
     """Ask TMDB for movies that match the search text.
 
@@ -48,24 +65,79 @@ def search_movies(query):
 
     url = f"{BASE_URL}/search/movie"
     params = {"api_key": API_KEY, "query": query}
-
     response = requests.get(url, params=params)
+    
 
     if response.status_code == 200:
         data = response.json()
         results = data.get("results", [])[:16]
 
         for m in results:
+            director = get_director(m.get("id"))
             movies.append({
                 "id": m.get("id"),
                 "title": m.get("title"),
                 "release_date": m.get("release_date"),
                 "rating": m.get("vote_average"),
                 "poster_url": build_poster_url(m.get("poster_path")),
+                "director": director,
             })
     else:
         print("TMDB error:", response.status_code, response.text)
 
+    return movies
+
+
+def search_movies_by_director(director_name):
+    """Search for all movies by a specific director.
+    
+    - Finds the director by name
+    - Returns all movies made by that director"""
+    movies = []
+    if not director_name:
+        return movies
+
+    # First, search for the director
+    url = f"{BASE_URL}/search/person"
+    params = {"api_key": API_KEY, "query": director_name}
+    response = requests.get(url, params=params)
+    
+    if response.status_code != 200:
+        print("TMDB error:", response.status_code, response.text)
+        return movies
+    
+    data = response.json()
+    results = data.get("results", [])
+    
+    if not results:
+        return movies
+    
+    # Get the first director result and their actual name
+    director_id = results[0].get("id")
+    actual_director_name = results[0].get("name")
+    
+    # Now get all movies directed by this person
+    url = f"{BASE_URL}/person/{director_id}/movie_credits"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        data = response.json()
+        crew = data.get("crew", [])
+        
+        # Filter for movies where this person was a director
+        directed_movies = [m for m in crew if m.get("job") == "Director"][:16]
+        
+        for m in directed_movies:
+            movies.append({
+                "id": m.get("id"),
+                "title": m.get("title"),
+                "release_date": m.get("release_date"),
+                "rating": m.get("vote_average"),
+                "poster_url": build_poster_url(m.get("poster_path")),
+                "director": actual_director_name,
+            })
+    
     return movies
 
 
@@ -201,7 +273,14 @@ def login_required(func):
 @login_required
 def movies():
     query = request.args.get("q", "").strip()
-    movies = search_movies(query)
+    search_type = request.args.get("type", "film").strip()  # Default to "film"
+    
+    # Choose search function based on type
+    if search_type == "director":
+        movies = search_movies_by_director(query)
+    else:
+        movies = search_movies(query)
+    
     username = session["username"]
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
@@ -225,6 +304,7 @@ def add_favorite():
     poster_url = request.form.get("poster_url")
     release_date = request.form.get("release_date")
     rating = request.form.get("rating")
+    director = request.form.get("director")
 
     username = session["username"]
     user = find_user(username)
@@ -242,6 +322,7 @@ def add_favorite():
             "poster_url": poster_url,
             "release_date": release_date,
             "rating": rating,
+            "director": director,
         })
         update_user(user)
 
@@ -304,8 +385,8 @@ def remove_favorite():
 def get_movie_details(movie_id):
     url = f"{BASE_URL}/movie/{movie_id}"
     params = {"api_key": API_KEY}
-
     response = requests.get(url, params=params)
+    print("sending request to TMDB:", url)
 
     if response.status_code == 200:
         data = response.json()
