@@ -90,12 +90,25 @@ def get_movie_details(movie_id):
     return {"runtime": None, "genres": []}
 
 
-def search_movies(query):
-    """Ask TMDB for movies that match the search text.
+def build_movie_dict(movie_data, director=None):
+    """Helper function to build a standardized movie dictionary from TMDB data."""
+    movie_id = movie_data.get("id")
+    details = get_movie_details(movie_id)
+    
+    return {
+        "id": movie_id,
+        "title": movie_data.get("title"),
+        "release_date": movie_data.get("release_date"),
+        "rating": movie_data.get("vote_average"),
+        "poster_url": build_poster_url(movie_data.get("poster_path")),
+        "director": director or get_director(movie_id),
+        "runtime": details.get("runtime"),
+        "genres": details.get("genres"),
+    }
 
-    - If the query is empty, we just return an empty list.
-    - If TMDB answers, we take the first 10 movies and keep only
-      the fields we care about."""
+
+def search_movies(query):
+    """Ask TMDB for movies that match the search text."""
     movies = []
     if not query:
         return movies
@@ -103,35 +116,18 @@ def search_movies(query):
     url = f"{BASE_URL}/search/movie"
     params = {"api_key": API_KEY, "query": query}
     response = requests.get(url, params=params)
-    
 
     if response.status_code == 200:
-        data = response.json()
-        results = data.get("results", [])[:16]
-
+        results = response.json().get("results", [])[:16]
         for m in results:
-            director = get_director(m.get("id"))
-            details = get_movie_details(m.get("id"))
-            movies.append({
-                "id": m.get("id"),
-                "title": m.get("title"),
-                "release_date": m.get("release_date"),
-                "rating": m.get("vote_average"),
-                "poster_url": build_poster_url(m.get("poster_path")),
-                "director": director,
-                "runtime": details.get("runtime"),
-                "genres": details.get("genres"),
-            })
+            movies.append(build_movie_dict(m))
     else:
         print("TMDB error:", response.status_code, response.text)
 
     return movies
 
 def search_movies_by_director(director_name):
-    """Search for all movies by a specific director.
-    
-    - Finds the director by name
-    - Returns all movies made by that director"""
+    """Search for all movies by a specific director."""
     movies = []
     if not director_name:
         return movies
@@ -145,40 +141,24 @@ def search_movies_by_director(director_name):
         print("TMDB error:", response.status_code, response.text)
         return movies
     
-    data = response.json()
-    results = data.get("results", [])
-    
+    results = response.json().get("results", [])
     if not results:
         return movies
     
-    # Get the first director result and their actual name
     director_id = results[0].get("id")
     actual_director_name = results[0].get("name")
     
-    # Now get all movies directed by this person
+    # Get all movies directed by this person
     url = f"{BASE_URL}/person/{director_id}/movie_credits"
     params = {"api_key": API_KEY}
     response = requests.get(url, params=params)
     
     if response.status_code == 200:
-        data = response.json()
-        crew = data.get("crew", [])
-        
-        # Filter for movies where this person was a director
+        crew = response.json().get("crew", [])
         directed_movies = [m for m in crew if m.get("job") == "Director"][:16]
         
         for m in directed_movies:
-            details = get_movie_details(m.get("id"))
-            movies.append({
-                "id": m.get("id"),
-                "title": m.get("title"),
-                "release_date": m.get("release_date"),
-                "rating": m.get("vote_average"),
-                "poster_url": build_poster_url(m.get("poster_path")),
-                "director": actual_director_name,
-                "runtime": details.get("runtime"),
-                "genres": details.get("genres"),
-            })
+            movies.append(build_movie_dict(m, director=actual_director_name))
     
     return movies
 
@@ -438,20 +418,7 @@ def remove_favorite():
     return redirect(url_for("my_list"))
 
 
-# Wrapped functions
-def get_movie_details(movie_id):
-    url = f"{BASE_URL}/movie/{movie_id}"
-    params = {"api_key": API_KEY}
-    response = requests.get(url, params=params)
-    print("sending request to TMDB:", url)
 
-    if response.status_code == 200:
-        data = response.json()
-        return {
-            "runtime": data.get("runtime", 0),
-            "genres": [genre["name"] for genre in data.get("genres", [])],
-        }
-    return {"runtime": 0, "genres": []}
 
 @app.route("/wrapped")
 @login_required
@@ -465,14 +432,22 @@ def wrapped():
 
     # Loop through each favorite movie to get details
     for fav in favorites:
-        details = get_movie_details(fav["id"])
-        total_minutes += details["runtime"]
-        all_genres.extend(details["genres"])
+        runtime = fav.get("runtime")
+        if runtime:
+            total_minutes += int(runtime)
+        
+        genres = fav.get("genres")
+        if genres:
+            # Handle both comma-separated string and list formats
+            if isinstance(genres, str):
+                all_genres.extend([g.strip() for g in genres.split(",")])
+            else:
+                all_genres.extend(genres)
 
     hours = total_minutes // 60
     minutes = total_minutes % 60
 
-    most_comon_genre = None
+    most_common_genre = None
     if all_genres:
         from collections import Counter
         genre_counts = Counter(all_genres)
