@@ -70,7 +70,7 @@ h1 {
 .sort-controls {
   display: flex;
   justify-content: left;
-  align-items: left;
+  align-items: center;
   gap: 12px;
   margin-bottom: 30px;
 }
@@ -91,7 +91,24 @@ h1 {
 }
 
 #sort-dropdown:hover {
-  background: #475569;
+  background: #2563eb;
+}
+
+.reverse-btn {
+  padding: 2.5px 6px;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.reverse-btn:hover {
+  background: #2563eb;
 }
 
 /* === Movie Results Grid === */

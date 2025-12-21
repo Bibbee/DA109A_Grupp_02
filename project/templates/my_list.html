@@ -18,11 +18,14 @@
     {% if favorites %}
         <div class="sort-controls">
             <label for="sort-dropdown"><strong>Sort by:</strong></label>
-            <select id="sort-dropdown" onchange="changeSortOrder(this.value)">
+            <select id="sort-dropdown" class="search-type" onchange="changeSortOrder(this.value)">
                 <option value="added" {% if sort_by == 'added' %}selected{% endif %}>Added to List</option>
                 <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating</option>
                 <option value="release" {% if sort_by == 'release' %}selected{% endif %}>Release Date</option>
             </select>
+            <button id="reverse-btn" class="reverse-btn" onclick="toggleReverse()" title="Reverse sort order">
+                {% if reverse_sort %}↓{% else %}↑{% endif %}
+            </button>
         </div>
 
         <div class="results">
@@ -70,7 +73,15 @@
 
 <script>
 function changeSortOrder(sortValue) {
-    window.location.href = "{{ url_for('my_list') }}?sort=" + sortValue;
+    const reverse = new URLSearchParams(window.location.search).get("reverse") === "true";
+    window.location.href = "{{ url_for('my_list') }}?sort=" + sortValue + "&reverse=" + reverse;
+}
+
+function toggleReverse() {
+    const params = new URLSearchParams(window.location.search);
+    const currentSort = params.get("sort") || "added";
+    const currentReverse = params.get("reverse") === "true";
+    window.location.href = "{{ url_for('my_list') }}?sort=" + currentSort + "&reverse=" + (!currentReverse);
 }
 </script>
 

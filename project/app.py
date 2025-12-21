@@ -373,13 +373,16 @@ def my_list():
     
     # Get sort parameter from query string, default to "added"
     sort_by = request.args.get("sort", "added")
+    reverse_sort = request.args.get("reverse", "false").lower() == "true"
     
     # Sort the favorites based on the selected option
     if sort_by == "rating":
-        favorites = sorted(favorites, key=lambda x: float(x.get("rating", 0)), reverse=True)
+        favorites = sorted(favorites, key=lambda x: float(x.get("rating", 0)), reverse=not reverse_sort)
     elif sort_by == "release":
-        favorites = sorted(favorites, key=lambda x: x.get("release_date", ""), reverse=True)
-    # "added" keeps the original order (no sorting needed)
+        favorites = sorted(favorites, key=lambda x: x.get("release_date", ""), reverse=not reverse_sort)
+    # "added" keeps the original order (no sorting needed, but can be reversed)
+    elif reverse_sort:
+        favorites = list(reversed(favorites))
 
     # Render the my_list.html with the user's current info
     return render_template(
@@ -387,6 +390,7 @@ def my_list():
         username=username,
         favorites=favorites,
         sort_by=sort_by,
+        reverse_sort=reverse_sort,
     )
 
 #--- REMOVING MOVIES ROUTE---
