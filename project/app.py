@@ -87,7 +87,6 @@ def search_movies(query):
 
     return movies
 
-
 def search_movies_by_director(director_name):
     """Search for all movies by a specific director.
     
