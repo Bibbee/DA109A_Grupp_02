@@ -31,7 +31,6 @@ DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
 
 
 def format_runtime(minutes):
-    """Convert minutes to human readable format (e.g., '2 hours 20 minutes' or '45 minutes')"""
     if not minutes:
         return "Unknown"
     minutes = int(minutes)
@@ -45,20 +44,14 @@ def format_runtime(minutes):
     else:
         return f"{minutes} minute{'s' if minutes > 1 else ''}"
 
-
 app.jinja_env.filters['format_runtime'] = format_runtime
-
 
 def build_poster_url(poster_path, size="w342"):
     if not poster_path:
         return None
     return f"https://image.tmdb.org/t/p/{size}{poster_path}" 
 
-
 def get_director(movie_id):
-    """Fetch the director of a movie from TMDB credits endpoint.
-    
-    Returns the director's name or None if not found."""
     url = f"{BASE_URL}/movie/{movie_id}/credits"
     params = {"api_key": API_KEY}
     response = requests.get(url, params=params)
@@ -71,11 +64,7 @@ def get_director(movie_id):
                 return person.get("name")
     return None
 
-
 def get_movie_details(movie_id):
-    """Fetch full movie details from TMDB including runtime and genres.
-    
-    Returns a dict with runtime and genres or empty dict if not found."""
     url = f"{BASE_URL}/movie/{movie_id}"
     params = {"api_key": API_KEY}
     response = requests.get(url, params=params)
@@ -88,7 +77,6 @@ def get_movie_details(movie_id):
             "genres": genres
         }
     return {"runtime": None, "genres": []}
-
 
 def build_movie_dict(movie_data, director=None):
     """Helper function to build a standardized movie dictionary from TMDB data."""
@@ -105,7 +93,6 @@ def build_movie_dict(movie_data, director=None):
         "runtime": details.get("runtime"),
         "genres": details.get("genres"),
     }
-
 
 def search_movies(query):
     """Ask TMDB for movies that match the search text."""
@@ -127,7 +114,6 @@ def search_movies(query):
     return movies
 
 def search_movies_by_director(director_name):
-    """Search for all movies by a specific director."""
     movies = []
     if not director_name:
         return movies
@@ -161,17 +147,9 @@ def search_movies_by_director(director_name):
             movies.append(build_movie_dict(m, director=actual_director_name))
     
     return movies
-
-
 # ---------- Helper functions for JSON "DB" ----------
 
 def load_users():
-    """
-    "Read all users from the JSON file.
-
-    If the file does not exist or is broken,
-    we just return an empty list so the app still works.
-    """
     if not os.path.exists(DB_FILE):
         return []
     with open(DB_FILE, "r", encoding="utf-8") as f:
@@ -180,41 +158,24 @@ def load_users():
         except json.JSONDecodeError:
             return []
 
-
 def save_users(users):
-    """
-    Save the whole users list back into the JSON file.
-    This overwrites the file with the new data.
-    """
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, indent=2)
 
-
 def find_user(username):
-    """
-    Find one user with a matching username.
-    Returns the user dict if found, otherwise None.
-    """
     users = load_users()
     for u in users:
         if u["username"] == username:
             return u
     return None
 
-
 def update_user(user):
-    """
-    Replace a user in the list and save everything.
-    We look for a user with the same username,
-    swap it with the new one, and then call save_users().
-    """
     users = load_users()
     for i, u in enumerate(users):
         if u["username"] == user["username"]:
             users[i] = user
             break
     save_users(users)
-
 
 # ---------- Auth routes ----------
 
@@ -237,7 +198,6 @@ def login():
             error = "Invalid username or password."
 
     return render_template("index.html", error=error)
-
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -270,12 +230,10 @@ def register():
 
     return render_template("register.html", error=error)
 
-
 @app.route("/logout")
 def logout():
     session.pop("username", None)
     return redirect(url_for("login"))
-
 
 # ---------- Protected movies route ----------
 
@@ -289,7 +247,6 @@ def login_required(func):
         return func(*args, **kwargs)
 
     return wrapper
-
 
 @app.route("/movies", methods=["GET", "POST"])
 @login_required
@@ -315,9 +272,7 @@ def movies():
         favorites=favorites,
     )
 
-
 # ---------- Add favorite ----------
-
 @app.route("/add_favorite", methods=["POST"])
 @login_required
 def add_favorite():
@@ -409,7 +364,6 @@ def remove_favorite():
             return jsonify({"status": "error", "message": "User not found"}), 400
         return redirect(url_for("my_list"))
 
-    
     favorites = user.get("favorites", []) # All the current favorite movies
     new_favorites = [f for f in favorites if str(f.get("id")) != str(movie_id)]
     user["favorites"] = new_favorites
@@ -420,9 +374,6 @@ def remove_favorite():
         return jsonify({"status": "ok"})
 
     return redirect(url_for("my_list"))
-
-
-
 
 @app.route("/wrapped")
 @login_required
