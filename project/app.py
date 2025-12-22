@@ -1,27 +1,10 @@
-# Imports (tools we use):
-# Flask = the web framework. It helps us create web pages and routes
-# render_template = show HTML files
-# request = read data from forms and URLs
-# redirect, url_for = move the user to another page
-# session = remember which user is logged in
-# jsonify = send back small JSON messages (for our toast popup)
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-
-# requests = used to call the TMDB API (ask for movie data)
 import requests
-
-# load_dotenv = reads values from .env (our API_KEY)
 from dotenv import load_dotenv
-
-# os = talk to the operating system, checks if a file exists
 import os
-
-# json = read and write JSON files (basically our database)
 import json
 
-# Flask setup 
 app = Flask(__name__)
-
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 load_dotenv()
