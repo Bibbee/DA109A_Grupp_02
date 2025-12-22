@@ -30,42 +30,136 @@ BASE_URL = "https://api.themoviedb.org/3" # base URL for TMDB requests
 DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
 
 
+def format_runtime(minutes):
+    """Convert minutes to human readable format (e.g., '2 hours 20 minutes' or '45 minutes')"""
+    if not minutes:
+        return "Unknown"
+    minutes = int(minutes)
+    if minutes >= 60:
+        hours = minutes // 60
+        remaining_minutes = minutes % 60
+        if remaining_minutes == 0:
+            return f"{hours} hour{'s' if hours > 1 else ''}"
+        else:
+            return f"{hours} hour{'s' if hours > 1 else ''} {remaining_minutes} minute{'s' if remaining_minutes > 1 else ''}"
+    else:
+        return f"{minutes} minute{'s' if minutes > 1 else ''}"
+
+
+app.jinja_env.filters['format_runtime'] = format_runtime
+
+
 def build_poster_url(poster_path, size="w342"):
     if not poster_path:
         return None
     return f"https://image.tmdb.org/t/p/{size}{poster_path}" 
 
 
-def search_movies(query):
-    """Ask TMDB for movies that match the search text.
+def get_director(movie_id):
+    """Fetch the director of a movie from TMDB credits endpoint.
+    
+    Returns the director's name or None if not found."""
+    url = f"{BASE_URL}/movie/{movie_id}/credits"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        data = response.json()
+        crew = data.get("crew", [])
+        for person in crew:
+            if person.get("job") == "Director":
+                return person.get("name")
+    return None
 
-    - If the query is empty, we just return an empty list.
-    - If TMDB answers, we take the first 10 movies and keep only
-      the fields we care about."""
+
+def get_movie_details(movie_id):
+    """Fetch full movie details from TMDB including runtime and genres.
+    
+    Returns a dict with runtime and genres or empty dict if not found."""
+    url = f"{BASE_URL}/movie/{movie_id}"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        data = response.json()
+        genres = [g.get("name") for g in data.get("genres", [])]
+        return {
+            "runtime": data.get("runtime"),
+            "genres": genres
+        }
+    return {"runtime": None, "genres": []}
+
+
+def build_movie_dict(movie_data, director=None):
+    """Helper function to build a standardized movie dictionary from TMDB data."""
+    movie_id = movie_data.get("id")
+    details = get_movie_details(movie_id)
+    
+    return {
+        "id": movie_id,
+        "title": movie_data.get("title"),
+        "release_date": movie_data.get("release_date"),
+        "rating": movie_data.get("vote_average"),
+        "poster_url": build_poster_url(movie_data.get("poster_path")),
+        "director": director or get_director(movie_id),
+        "runtime": details.get("runtime"),
+        "genres": details.get("genres"),
+    }
+
+
+def search_movies(query):
+    """Ask TMDB for movies that match the search text."""
     movies = []
     if not query:
         return movies
 
     url = f"{BASE_URL}/search/movie"
     params = {"api_key": API_KEY, "query": query}
-
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        data = response.json()
-        results = data.get("results", [])[:16]
-
+        results = response.json().get("results", [])[:16]
         for m in results:
-            movies.append({
-                "id": m.get("id"),
-                "title": m.get("title"),
-                "release_date": m.get("release_date"),
-                "rating": m.get("vote_average"),
-                "poster_url": build_poster_url(m.get("poster_path")),
-            })
+            movies.append(build_movie_dict(m))
     else:
         print("TMDB error:", response.status_code, response.text)
 
+    return movies
+
+def search_movies_by_director(director_name):
+    """Search for all movies by a specific director."""
+    movies = []
+    if not director_name:
+        return movies
+
+    # First, search for the director
+    url = f"{BASE_URL}/search/person"
+    params = {"api_key": API_KEY, "query": director_name}
+    response = requests.get(url, params=params)
+    
+    if response.status_code != 200:
+        print("TMDB error:", response.status_code, response.text)
+        return movies
+    
+    results = response.json().get("results", [])
+    if not results:
+        return movies
+    
+    director_id = results[0].get("id")
+    actual_director_name = results[0].get("name")
+    
+    # Get all movies directed by this person
+    url = f"{BASE_URL}/person/{director_id}/movie_credits"
+    params = {"api_key": API_KEY}
+    response = requests.get(url, params=params)
+    
+    if response.status_code == 200:
+        crew = response.json().get("crew", [])
+        directed_movies = [m for m in crew if m.get("job") == "Director"][:16]
+        
+        for m in directed_movies:
+            movies.append(build_movie_dict(m, director=actual_director_name))
+    
     return movies
 
 
@@ -201,7 +295,14 @@ def login_required(func):
 @login_required
 def movies():
     query = request.args.get("q", "").strip()
-    movies = search_movies(query)
+    search_type = request.args.get("type", "film").strip()  # Default to "film"
+    
+    # Choose search function based on type
+    if search_type == "director":
+        movies = search_movies_by_director(query)
+    else:
+        movies = search_movies(query)
+    
     username = session["username"]
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
@@ -225,6 +326,9 @@ def add_favorite():
     poster_url = request.form.get("poster_url")
     release_date = request.form.get("release_date")
     rating = request.form.get("rating")
+    director = request.form.get("director")
+    runtime = request.form.get("runtime")
+    genres = request.form.get("genres")
 
     username = session["username"]
     user = find_user(username)
@@ -236,16 +340,15 @@ def add_favorite():
         user["favorites"] = []
 
     if not any(str(f["id"]) == str(movie_id) for f in user["favorites"]):
-        details = get_movie_details(movie_id)
-
         user["favorites"].append({
             "id": movie_id,
             "title": title,
             "poster_url": poster_url,
             "release_date": release_date,
             "rating": rating,
-            "runtime": details["runtime"], #####
-            "genres": details["genres"],   #####
+            "director": director,
+            "runtime": runtime,
+            "genres": genres,
         })
         update_user(user)
 
@@ -267,12 +370,27 @@ def my_list():
     # This one loads user data from our JSON
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
+    
+    # Get sort parameter from query string, default to "added"
+    sort_by = request.args.get("sort", "added")
+    reverse_sort = request.args.get("reverse", "false").lower() == "true"
+    
+    # Sort the favorites based on the selected option
+    if sort_by == "rating":
+        favorites = sorted(favorites, key=lambda x: float(x.get("rating", 0)), reverse=not reverse_sort)
+    elif sort_by == "release":
+        favorites = sorted(favorites, key=lambda x: x.get("release_date", ""), reverse=not reverse_sort)
+    # "added" keeps the original order (no sorting needed, but can be reversed)
+    elif reverse_sort:
+        favorites = list(reversed(favorites))
 
     # Render the my_list.html with the user's current info
     return render_template(
         "my_list.html",
         username=username,
         favorites=favorites,
+        sort_by=sort_by,
+        reverse_sort=reverse_sort,
     )
 
 #--- REMOVING MOVIES ROUTE---
@@ -304,20 +422,7 @@ def remove_favorite():
     return redirect(url_for("my_list"))
 
 
-# Wrapped functions
-def get_movie_details(movie_id):
-    url = f"{BASE_URL}/movie/{movie_id}"
-    params = {"api_key": API_KEY}
 
-    response = requests.get(url, params=params)
-
-    if response.status_code == 200:
-        data = response.json()
-        return {
-            "runtime": data.get("runtime", 0) or 0,
-            "genres": [g["name"] for g in data.get("genres", [])],
-        }
-    return {"runtime": 0, "genres": []}
 
 @app.route("/wrapped")
 @login_required
@@ -329,44 +434,28 @@ def wrapped():
     total_minutes = 0
     all_genres = []
 
-    # så den ALLTID finns (ingen crash)
-    most_common_genre = None
-
-    updated = False
-
+    # Loop through each favorite movie to get details
     for fav in favorites:
         runtime = fav.get("runtime")
+        if runtime:
+            total_minutes += int(runtime)
+        
         genres = fav.get("genres")
-
-        # Om vi redan sparat detaljer → använd direkt
-        if runtime is not None and genres is not None:
-            total_minutes += int(runtime or 0)
-            all_genres.extend(genres)
-            continue
-
-        # Annars: hämta en gång från TMDB
-        details = get_movie_details(fav["id"])
-        runtime = int(details.get("runtime") or 0)
-        genres = details.get("genres", [])
-
-        total_minutes += runtime
-        all_genres.extend(genres)
-
-        # Backfill så nästa gång går snabbt
-        fav["runtime"] = runtime
-        fav["genres"] = genres
-        updated = True
-
-    if updated and user:
-        update_user(user)
+        if genres:
+            # Handle both comma-separated string and list formats
+            if isinstance(genres, str):
+                all_genres.extend([g.strip() for g in genres.split(",")])
+            else:
+                all_genres.extend(genres)
 
     hours = total_minutes // 60
     minutes = total_minutes % 60
 
-
+    most_common_genre = None
     if all_genres:
         from collections import Counter
-        most_common_genre = Counter(all_genres).most_common(1)[0][0]
+        genre_counts = Counter(all_genres)
+        most_common_genre = genre_counts.most_common(1)[0][0]
 
     return render_template(
         "wrapped.html",

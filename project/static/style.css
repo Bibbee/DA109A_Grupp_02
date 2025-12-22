@@ -44,6 +44,15 @@ h1 {
   color: white;
 }
 
+.search-form select {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: white;
+  cursor: pointer;
+}
+
 .search-form button {
   padding: 10px 18px;
   border: none;
@@ -54,6 +63,51 @@ h1 {
 }
 
 .search-form button:hover {
+  background: #2563eb;
+}
+
+/* === Sort Controls (My List) === */
+.sort-controls {
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.sort-controls label {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+#sort-dropdown {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+#sort-dropdown:hover {
+  background: #2563eb;
+}
+
+.reverse-btn {
+  padding: 2.5px 6px;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.reverse-btn:hover {
   background: #2563eb;
 }
 

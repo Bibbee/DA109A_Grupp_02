@@ -16,6 +16,18 @@
     </div>
 
     {% if favorites %}
+        <div class="sort-controls">
+            <label for="sort-dropdown"><strong>Sort by:</strong></label>
+            <select id="sort-dropdown" class="search-type" onchange="changeSortOrder(this.value)">
+                <option value="added" {% if sort_by == 'added' %}selected{% endif %}>Added to List</option>
+                <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Rating</option>
+                <option value="release" {% if sort_by == 'release' %}selected{% endif %}>Release Date</option>
+            </select>
+            <button id="reverse-btn" class="reverse-btn" onclick="toggleReverse()" title="Reverse sort order">
+                {% if reverse_sort %}↓{% else %}↑{% endif %}
+            </button>
+        </div>
+
         <div class="results">
             {% for movie in favorites %}
                 <div class="movie-card">
@@ -27,7 +39,14 @@
                     <div class="movie-info">
                         <h2>{{ movie.title }}</h2>
                         <p><strong>Release:</strong> {{ movie.release_date or "Unknown" }}</p>
+                        <p><strong>Director:</strong> {{ movie.director or "Unknown" }}</p>
                         <p><strong>Rating:</strong> {{ movie.rating }}</p>
+                        {% if movie.runtime %}
+                            <p><strong>Runtime:</strong> {{ movie.runtime|format_runtime }}</p>
+                        {% endif %}
+                        {% if movie.genres %}
+                            <p><strong>Genres:</strong> {{ movie.genres }}</p>
+                        {% endif %}
 
                         <form method="post"
                               action="{{ url_for('remove_favorite') }}"
@@ -51,6 +70,20 @@
 </div>
 
 <div id="toast-container" class="toast-container"></div>
+
+<script>
+function changeSortOrder(sortValue) {
+    const reverse = new URLSearchParams(window.location.search).get("reverse") === "true";
+    window.location.href = "{{ url_for('my_list') }}?sort=" + sortValue + "&reverse=" + reverse;
+}
+
+function toggleReverse() {
+    const params = new URLSearchParams(window.location.search);
+    const currentSort = params.get("sort") || "added";
+    const currentReverse = params.get("reverse") === "true";
+    window.location.href = "{{ url_for('my_list') }}?sort=" + currentSort + "&reverse=" + (!currentReverse);
+}
+</script>
 
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
