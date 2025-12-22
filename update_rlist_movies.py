@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Script to update rList user's favorite movies with runtime and genres from TMDB API
+Script to update a user's favorite movies with runtime and genres from TMDB API
 """
 
 import json
 import requests
 from dotenv import load_dotenv
 import os
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -37,26 +38,26 @@ def get_movie_details(movie_id):
     return {"runtime": None, "genres": None}
 
 
-def update_rlist_movies():
-    """Update all movies in rList with runtime and genres."""
+def update_user_movies(username):
+    """Update all movies for a specified user with runtime and genres."""
     
     # Read users.json
     with open("users.json", "r", encoding="utf-8") as f:
         users = json.load(f)
     
-    # Find rList user
-    rlist_user = None
+    # Find the user
+    target_user = None
     for user in users:
-        if user.get("username") == "rList":
-            rlist_user = user
+        if user.get("username") == username:
+            target_user = user
             break
     
-    if not rlist_user:
-        print("Error: rList user not found")
+    if not target_user:
+        print(f"Error: User '{username}' not found")
         return
     
-    favorites = rlist_user.get("favorites", [])
-    print(f"Found {len(favorites)} movies in rList's favorites")
+    favorites = target_user.get("favorites", [])
+    print(f"Found {len(favorites)} movies in {username}'s favorites")
     print("Fetching runtime and genres from TMDB...\n")
     
     updated_count = 0
@@ -90,9 +91,10 @@ def update_rlist_movies():
     with open("users.json", "w", encoding="utf-8") as f:
         json.dump(users, f, indent=2, ensure_ascii=False)
     
-    print(f"\n✓ Updated {updated_count} movies in rList's favorites")
+    print(f"\n✓ Updated {updated_count} movies in {username}'s favorites")
     print("✓ users.json has been saved")
 
-
 if __name__ == "__main__":
-    update_rlist_movies()
+    # Allow specifying username as command line argument, default to "123"
+    username = sys.argv[1] if len(sys.argv) > 1 else "123"
+    update_user_movies(username)
