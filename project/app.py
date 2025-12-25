@@ -301,11 +301,8 @@ def add_favorite():
 @app.route("/my-list", methods=["GET"])
 @login_required
 def my_list():
-
-    # Gathers the username of the user.
     username = session["username"]
 
-    # This one loads user data from our JSON
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
     
@@ -313,16 +310,13 @@ def my_list():
     sort_by = request.args.get("sort", "added")
     reverse_sort = request.args.get("reverse", "false").lower() == "true"
     
-    # Sort the favorites based on the selected option
     if sort_by == "rating":
         favorites = sorted(favorites, key=lambda x: float(x.get("rating", 0)), reverse=not reverse_sort)
     elif sort_by == "release":
         favorites = sorted(favorites, key=lambda x: x.get("release_date", ""), reverse=not reverse_sort)
-    # "added" keeps the original order (no sorting needed, but can be reversed)
     elif reverse_sort:
         favorites = list(reversed(favorites))
 
-    # Render the my_list.html with the user's current info
     return render_template(
         "my_list.html",
         username=username,
@@ -335,10 +329,8 @@ def my_list():
 @app.route("/remove_favorite", methods=["POST"])
 @login_required
 def remove_favorite():
-    # Decide which movie to remove based on id.
     movie_id = request.form.get("id")
 
-    # Gathers username of the logged in user
     username = session["username"]
     user = find_user(username)
 
@@ -355,7 +347,7 @@ def remove_favorite():
     # Javascript call: ensures the cards are succesfully removed by with the animation thing; no need to reload the page now. 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"status": "ok"})
-
+    
     return redirect(url_for("my_list"))
 
 @app.route("/wrapped")
@@ -376,7 +368,6 @@ def wrapped():
         
         genres = fav.get("genres")
         if genres:
-            # Handle both comma-separated string and list formats
             if isinstance(genres, str):
                 all_genres.extend([g.strip() for g in genres.split(",")])
             else:
