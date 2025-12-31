@@ -29,69 +29,81 @@ API_KEY = os.getenv("API_KEY") # TMDB API key
 BASE_URL = "https://api.themoviedb.org/3" # base URL for TMDB requests
 DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
 
-
+    
 def format_runtime(minutes):
-    """Convert minutes to human readable format (e.g., '2 hours 20 minutes' or '45 minutes')"""
+    """ 
+    This function makes sure that minutes and hours are formatted correctly,
+    while also displaying remaining minutes. 'Unknown' will be shown if no data
+    exists. 
+
+    returns also makes sure that minutes and hours are displayed correctly.
+    """
     if not minutes:
         return "Unknown"
-    minutes = int(minutes)
-    if minutes >= 60:
-        hours = minutes // 60
-        remaining_minutes = minutes % 60
-        if remaining_minutes == 0:
-            return f"{hours} hour{'s' if hours > 1 else ''}"
-        else:
-            return f"{hours} hour{'s' if hours > 1 else ''} {remaining_minutes} minute{'s' if remaining_minutes > 1 else ''}"
-    else:
-        return f"{minutes} minute{'s' if minutes > 1 else ''}"
 
+    minutes = int(minutes)
+    hours = minutes // 60
+    mins = minutes % 60
+
+    if hours == 0:
+        return f"{mins} minute{'s' if mins != 1 else ''}"
+    if mins == 0:
+        return f"{hours} hour{'s' if hours != 1 else ''}"
+    return f"{hours} hour{'s' if hours != 1 else ''} {mins} minute{'s' if mins != 1 else ''}"
 
 app.jinja_env.filters['format_runtime'] = format_runtime
 
 
 def build_poster_url(poster_path, size="w342"):
+    
+    # This function builds a readable image URL from TMBDb's image server. 
     if not poster_path:
         return None
     return f"https://image.tmdb.org/t/p/{size}{poster_path}" 
 
 
 def get_director(movie_id):
-    """Fetch the director of a movie from TMDB credits endpoint.
-    
-    Returns the director's name or None if not found."""
+    """
+    This uses the movie id to get access to TMDb's credits endpoint to
+    find the specific director and returns the name of the director.
+    """
+
     url = f"{BASE_URL}/movie/{movie_id}/credits"
-    params = {"api_key": API_KEY}
-    response = requests.get(url, params=params)
-    
-    if response.status_code == 200:
-        data = response.json()
-        crew = data.get("crew", [])
-        for person in crew:
-            if person.get("job") == "Director":
-                return person.get("name")
+    res = requests.get(url, params={"api_key": API_KEY})
+
+    if res.status_code != 200:
+        return None
+
+    for person in res.json().get("crew", []):
+        if person.get("job") == "Director":
+            return person.get("name")
+
     return None
 
 
+
 def get_movie_details(movie_id):
-    """Fetch full movie details from TMDB including runtime and genres.
-    
-    Returns a dict with runtime and genres or empty dict if not found."""
+    """
+    This function builds an URL to the exact movie in question with all its details and
+    returns genres and runtime.
+    """
     url = f"{BASE_URL}/movie/{movie_id}"
-    params = {"api_key": API_KEY}
-    response = requests.get(url, params=params)
-    
-    if response.status_code == 200:
-        data = response.json()
-        genres = [g.get("name") for g in data.get("genres", [])]
-        return {
-            "runtime": data.get("runtime"),
-            "genres": genres
-        }
-    return {"runtime": None, "genres": []}
+    res = requests.get(url, params={"api_key": API_KEY})
+
+    if res.status_code != 200:
+        return {"runtime": None, "genres": []}
+
+    data = res.json()
+    genres = [genre.get("name") for genre in data.get("genres", [])]
+    return {"runtime": data.get("runtime"), "genres": genres}
+
 
 
 def build_movie_dict(movie_data, director=None):
-    """Helper function to build a standardized movie dictionary from TMDB data."""
+    """
+    This function makes sure that a clean movie dictionary is made with only
+    the necessary data to display in the movie cards in our HTML .
+    """
     movie_id = movie_data.get("id")
     details = get_movie_details(movie_id)
     
