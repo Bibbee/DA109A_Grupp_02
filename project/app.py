@@ -119,60 +119,73 @@ def build_movie_dict(movie_data, director=None):
     }
 
 
-def search_movies(query):
+def search_movies(query, limit=15):
     """Ask TMDB for movies that match the search text."""
-    movies = []
     if not query:
-        return movies
+        return []
 
     url = f"{BASE_URL}/search/movie"
-    params = {"api_key": API_KEY, "query": query}
-    response = requests.get(url, params=params)
 
-    if response.status_code == 200:
-        results = response.json().get("results", [])[:16]
-        for m in results:
-            movies.append(build_movie_dict(m))
-    else:
-        print("TMDB error:", response.status_code, response.text)
+    try:
+        response = requests.get(url, params = {"api_key": API_KEY, "query": query}, timeout=10)
+    except requests.RequestException as err:
+        print(f"TMDb-fel (search/movie): {err}")
+        return []
 
-    return movies
+    if response.status_code != 200:
+        print(f"TMDb-fel (search/movie): {response.status_code}")
+        return []
+    
+    results = response.json().get("results", [])[:limit]
+    return [build_movie_dict(movie) for movie in results]
 
-def search_movies_by_director(director_name):
+def search_movies_by_director(director_name, limit=15):
     """Search for all movies by a specific director."""
-    movies = []
     if not director_name:
-        return movies
+        return []
 
     # First, search for the director
     url = f"{BASE_URL}/search/person"
-    params = {"api_key": API_KEY, "query": director_name}
+    try:
+        response = requests.get(url, params = {"api_key": API_KEY, "query": director_name}, timeout=10)
+    except requests.RequestException as err:
+        print(f"TMDb fel (seach/person): {err}")
+        return []
+    
     response = requests.get(url, params=params)
     
     if response.status_code != 200:
-        print("TMDB error:", response.status_code, response.text)
-        return movies
+        print(f"TMDb-fel (search/person): {response.status_code}")
+        return []
     
-    results = response.json().get("results", [])
-    if not results:
-        return movies
+    persons = response.json().get("results", [])
+    if not persons:
+        return []
     
-    director_id = results[0].get("id")
-    actual_director_name = results[0].get("name")
+    director = persons[0]  # MVP: ta första matchen
+    director_id = director.get("id")
+    director_display_name = director.get("name") or director_name
+
+    if not director_id:
+        return []
     
     # Get all movies directed by this person
     url = f"{BASE_URL}/person/{director_id}/movie_credits"
-    params = {"api_key": API_KEY}
-    response = requests.get(url, params=params)
+
+    try:
+        response = requests.get(url, params = {"api_key": API_KEY}, timeout=10)
+    except requests.RequestException as err:
+        print(f"TMDb-fel (movie_credits): {err}")
+        return []
     
-    if response.status_code == 200:
-        crew = response.json().get("crew", [])
-        directed_movies = [m for m in crew if m.get("job") == "Director"][:16]
-        
-        for m in directed_movies:
-            movies.append(build_movie_dict(m, director=actual_director_name))
+    if response.status_code != 200:
+        print(f"TMDb-fel (movie_credits): {response.status_code}")
+        return []
     
-    return movies
+    crew = response.json().get("crew", [])
+    directed = [movie for movie in crew if movie.get("job") == "Director"][:limit]
+
+    return [build]
 
 
 # ---------- Helper functions for JSON "DB" ----------
