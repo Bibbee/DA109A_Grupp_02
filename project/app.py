@@ -241,11 +241,13 @@ def update_user(user):
     save_users(users)
 
 
-# ---------- Auth routes ----------
-
 @app.route("/", methods=["GET", "POST"])
 def login():
-    # If already logged in, go directly to movies
+    """
+    If the user is already logged in, redirect to the movies page.
+    validate the username and password and start a session.
+    If already logged in, go directly to movies.
+    """
     if "username" in session:
         return redirect(url_for("movies"))
 
@@ -266,6 +268,12 @@ def login():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    """
+    Handles both displaying the registration form (GET) and processing
+    submitted registration data (POST). Validates user input and ensures
+    that usernames are unique before saving the user to the JSON database.
+    Automatically logs in the user upon successfyul registration. 
+    """
     if "username" in session:
         return redirect(url_for("movies"))
 
@@ -289,7 +297,7 @@ def register():
                 "favorites": []
             })
             save_users(users)
-            # auto-login after register
+            
             session["username"] = username
             return redirect(url_for("movies"))
 
@@ -298,6 +306,10 @@ def register():
 
 @app.route("/logout")
 def logout():
+    """
+    Logout the current user.
+    Removes the username from the session and returns to the login page.
+    """
     session.pop("username", None)
     return redirect(url_for("login"))
 
@@ -305,14 +317,23 @@ def logout():
 # ---------- Protected movies route ----------
 
 def login_required(func):
+    """
+    Decorator that blocks access to a route if the user is not logged in.
+    """
     from functools import wraps
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        """ 
+        args = all positional arguments passed to the route
+        kwargs = all keyword arguments passed to the route
+        """
+        # Checks login status
         if "username" not in session:
             return redirect(url_for("login"))
+        #call the original function exactly as it was called
         return func(*args, **kwargs)
-
+    #replace the original function wuth the wrapped one
     return wrapper
 
 
