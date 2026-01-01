@@ -16,6 +16,8 @@ from dotenv import load_dotenv
 # os = talk to the operating system, checks if a file exists
 import os
 
+load_dotenv()
+
 # json = read and write JSON files (basically our database)
 import json
 
@@ -23,11 +25,11 @@ import json
 app = Flask(__name__)
 
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
-
-load_dotenv()
 API_KEY = os.getenv("API_KEY") # TMDB API key
 BASE_URL = "https://api.themoviedb.org/3" # base URL for TMDB requests
 DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
+OMDB_API_KEY = os.getenv("OMDB_API_KEY") # OMDB API key
+OMDB_BASE_URL = "https://www.omdbapi.com/" # base URL for OMDB requests
 
     
 def format_runtime(minutes):
@@ -120,7 +122,7 @@ def build_movie_dict(movie_data, director=None):
 
 
 def search_movies(query, limit=15):
-    """Ask TMDB for movies that match the search text."""
+    """Searches TMDb for movies matching a title query."""
     if not query:
         return []
 
@@ -140,16 +142,16 @@ def search_movies(query, limit=15):
     return [build_movie_dict(movie) for movie in results]
 
 def search_movies_by_director(director_name, limit=15):
-    """Search for all movies by a specific director."""
+    """Returns movies directed by a given person (MVP: first match)."""
     if not director_name:
         return []
 
     # First, search for the director
     url = f"{BASE_URL}/search/person"
     try:
-        response = requests.get(url, params = {"api_key": API_KEY, "query": director_name}, timeout=10)
+        response = requests.get(url, params={"api_key": API_KEY, "query": director_name}, timeout=10)
     except requests.RequestException as err:
-        print(f"TMDb fel (seach/person): {err}")
+        print(f"TMDb-fel (seach/person): {err}")
         return []
     
     if response.status_code != 200:
@@ -171,7 +173,7 @@ def search_movies_by_director(director_name, limit=15):
     url = f"{BASE_URL}/person/{director_id}/movie_credits"
 
     try:
-        response = requests.get(url, params = {"api_key": API_KEY}, timeout=10)
+        response = requests.get(url, params={"api_key": API_KEY}, timeout=10)
     except requests.RequestException as err:
         print(f"TMDb-fel (movie_credits): {err}")
         return []
@@ -183,47 +185,87 @@ def search_movies_by_director(director_name, limit=15):
     crew = response.json().get("crew", [])
     directed = [movie for movie in crew if movie.get("job") == "Director"][:limit]
 
-    return [build_movie_dict(movie, director_display_name) for movie in directed]
-
+    return [build_movie_dict(movie, director=director_display_name) for movie in directed]
 
 # ---------- Helper functions for JSON "DB" ----------
 
-def load_users():
-    """
-    "Read all users from the JSON file.
+def get_imdb_id_from_tmdb(tmdb_id):
+    """Returns IMDb ID for a TMDb movie ID, or None"""
+    url = f"{BASE_URL}/movie/{tmdb_id}/external_ids"
 
-    If the file does not exist or is broken,
-    we just return an empty list so the app still works.
-    """
+    try:
+        response = requests.get(url, params={"api_key": API_KEY}, timeout=10)
+    except requests.RequestException:
+        return None
+    
+    if response.status_code != 200:
+        return None
+    
+    return response.json().get("imdb_id")
+
+def get_imdb_rating_from_omdb(imdb_id):
+    """Returns IMDb rating as float (0–10), or None."""
+    if not imdb_id or not OMDB_API_KEY:
+        return None
+
+    try:
+        response = requests.get(
+            OMDB_BASE_URL,
+            params={"apikey": OMDB_API_KEY, "i": imdb_id},  # <-- apikey, inte api_key
+            timeout=10,
+        )
+    except requests.RequestException as err:
+        print(f"OMDb error: {err}")
+        return None
+
+    if response.status_code != 200:
+        print(f"OMDb error: {response.status_code} | {response.text[:200]}")
+        return None
+
+    data = response.json()
+    if data.get("Response") != "True":
+        print(f"OMDb error: {data.get('Error')}")
+        return None
+
+    rating_str = data.get("imdbRating")
+    if not rating_str or rating_str == "N/A":
+        return None
+
+    try:
+        return float(rating_str)
+    except ValueError:
+        return None
+
+def load_users():
+    """Loads all users from the JSON file. Always returns a list."""
     if not os.path.exists(DB_FILE):
         return []
-    with open(DB_FILE, "r", encoding="utf-8") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return []
+    
+    try:
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+    
+    return data if isinstance(data, list) else []
 
 
 def save_users(users):
-    """
-    Save the whole users list back into the JSON file.
-    This overwrites the file with the new data.
-    """
+    """Saves the full users list to the JSON file."""
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, indent=2)
+        json.dump(users, f, indent=2, ensure_ascii=False)
 
 
 def find_user(username):
-    """
-    Find one user with a matching username.
-    Returns the user dict if found, otherwise None.
-    """
-    users = load_users()
-    for u in users:
-        if u["username"] == username:
-            return u
+    """Returns the user dict for a username, or None if not found."""
+    if not username:
+        return None
+    
+    for user in load_users():
+        if user.get("username") == username:
+            return user
+        
     return None
-
 
 def update_user(user):
     """
@@ -239,13 +281,11 @@ def update_user(user):
     save_users(users)
 
 
+# ---------- Auth routes ----------
+
 @app.route("/", methods=["GET", "POST"])
 def login():
-    """
-    If the user is already logged in, redirect to the movies page.
-    validate the username and password and start a session.
-    If already logged in, go directly to movies.
-    """
+    # If already logged in, go directly to movies
     if "username" in session:
         return redirect(url_for("movies"))
 
@@ -266,12 +306,6 @@ def login():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """
-    Handles both displaying the registration form (GET) and processing
-    submitted registration data (POST). Validates user input and ensures
-    that usernames are unique before saving the user to the JSON database.
-    Automatically logs in the user upon successfyul registration. 
-    """
     if "username" in session:
         return redirect(url_for("movies"))
 
@@ -295,7 +329,7 @@ def register():
                 "favorites": []
             })
             save_users(users)
-            
+            # auto-login after register
             session["username"] = username
             return redirect(url_for("movies"))
 
@@ -304,10 +338,6 @@ def register():
 
 @app.route("/logout")
 def logout():
-    """
-    Logout the current user.
-    Removes the username from the session and returns to the login page.
-    """
     session.pop("username", None)
     return redirect(url_for("login"))
 
@@ -315,45 +345,28 @@ def logout():
 # ---------- Protected movies route ----------
 
 def login_required(func):
-    """
-    Decorator that blocks access to a route if the user is not logged in.
-    """
     from functools import wraps
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        """ 
-        args = all positional arguments passed to the route
-        kwargs = all keyword arguments passed to the route
-        """
-        # Checks login status
         if "username" not in session:
             return redirect(url_for("login"))
-        #call the original function exactly as it was called
         return func(*args, **kwargs)
-    #replace the original function wuth the wrapped one
+
     return wrapper
 
 
 @app.route("/movies", methods=["GET", "POST"])
 @login_required
 def movies():
-    """
-    Displays searched for movies based on user query and search type. 
-    Either by movie name or by director.
-    Also retrieves the logged-in user's favorite movies for display.
-    """
     query = request.args.get("q", "").strip()
-    search_type = request.args.get("type", "film").strip()
+    search_type = request.args.get("type", "film").strip()  # Default to "film"
     
-    # Map search types to search functions
-    search_functions = {
-        "director": search_movies_by_director,
-        "film": search_movies
-    }
-    
-    search_func = search_functions.get(search_type, search_movies)
-    movies_results = search_func(query)
+    # Choose search function based on type
+    if search_type == "director":
+        movies = search_movies_by_director(query)
+    else:
+        movies = search_movies(query)
     
     username = session["username"]
     user = find_user(username)
@@ -361,62 +374,82 @@ def movies():
 
     return render_template(
         "movies.html",
-        movies=movies_results,
+        movies=movies,
         query=query,
         username=username,
         favorites=favorites,
     )
 
+
+# ---------- Add favorite ----------
+
 @app.route("/add_favorite", methods=["POST"])
 @login_required
 def add_favorite():
-    """
-    Adds a movie to the logged-in user's list of favorite movies.
-    """
+    movie_id = request.form.get("id")
+    title = request.form.get("title")
+    poster_url = request.form.get("poster_url")
+    release_date = request.form.get("release_date")
+    rating = request.form.get("rating")
+    director = request.form.get("director")
+    runtime = request.form.get("runtime")
+    genres = request.form.get("genres")
+
     username = session["username"]
     user = find_user(username)
-    
     if not user:
+        # om nåt är helt fel, skicka 400 (bad request, ogiltig användare)
         return jsonify({"status": "error", "message": "User not found"}), 400
 
-    movie_id = request.form.get("id")
-    user.setdefault("favorites", [])
-    
-    # Only add if not already in favorites
+    if "favorites" not in user:
+        user["favorites"] = []
+
     if not any(str(f["id"]) == str(movie_id) for f in user["favorites"]):
-        movie_fields = ["id", "title", "poster_url", "release_date", "rating", "director", "runtime", "genres"]
-        user["favorites"].append({field: request.form.get(field) for field in movie_fields})
+        user["favorites"].append({
+            "id": movie_id,
+            "title": title,
+            "poster_url": poster_url,
+            "release_date": release_date,
+            "rating": rating,
+            "director": director,
+            "runtime": runtime,
+            "genres": genres,
+        })
         update_user(user)
 
-    # Return response based on request type
-    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
-    return jsonify({"status": "ok"}) if is_ajax else redirect(url_for("movies"))
+    # Om det är en AJAX-request → skicka JSON
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"status": "ok"})
 
+    # fallback om man skulle POST:a utan JS
+    return redirect(url_for("movies"))
+
+#--- NEW ROUTE FOR: MY LIST---
 @app.route("/my-list", methods=["GET"])
 @login_required
 def my_list():
-    """
-    Displays the logged-in user's list of favorite movies.
-    Allows sorting by rating or release date, with optional reverse sorting.
-    """
+
+    # Gathers the username of the user.
     username = session["username"]
+
+    # This one loads user data from our JSON
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
     
+    # Get sort parameter from query string, default to "added"
     sort_by = request.args.get("sort", "added")
     reverse_sort = request.args.get("reverse", "false").lower() == "true"
     
-    # Define sort key functions
-    sort_keys = {
-        "rating": lambda x: float(x.get("rating", 0)),
-        "release": lambda x: x.get("release_date", "")
-    }
-    
-    if sort_by in sort_keys:
-        favorites = sorted(favorites, key=sort_keys[sort_by], reverse=not reverse_sort)
+    # Sort the favorites based on the selected option
+    if sort_by == "rating":
+        favorites = sorted(favorites, key=lambda x: float(x.get("rating", 0)), reverse=not reverse_sort)
+    elif sort_by == "release":
+        favorites = sorted(favorites, key=lambda x: x.get("release_date", ""), reverse=not reverse_sort)
+    # "added" keeps the original order (no sorting needed, but can be reversed)
     elif reverse_sort:
         favorites = list(reversed(favorites))
 
+    # Render the my_list.html with the user's current info
     return render_template(
         "my_list.html",
         username=username,
@@ -425,13 +458,14 @@ def my_list():
         reverse_sort=reverse_sort,
     )
 
+#--- REMOVING MOVIES ROUTE---
 @app.route("/remove_favorite", methods=["POST"])
 @login_required
 def remove_favorite():
-    """
-    Removes a movie from the logged-in user's list of favorite movies.
-    """
+    # Decide which movie to remove based on id.
     movie_id = request.form.get("id")
+
+    # Gathers username of the logged in user
     username = session["username"]
     user = find_user(username)
 
@@ -440,40 +474,51 @@ def remove_favorite():
             return jsonify({"status": "error", "message": "User not found"}), 400
         return redirect(url_for("my_list"))
 
-    # Remove the movie from favorites
-    user["favorites"] = [f for f in user.get("favorites", []) if str(f.get("id")) != str(movie_id)]
-    update_user(user)
+    
+    favorites = user.get("favorites", []) # All the current favorite movies
+    new_favorites = [f for f in favorites if str(f.get("id")) != str(movie_id)]
+    user["favorites"] = new_favorites
+    update_user(user) # Save the changes to JSON
 
-    # Return appropriate response based on request type
-    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
-    return jsonify({"status": "ok"}) if is_ajax else redirect(url_for("my_list"))
+    # Javascript call: ensures the cards are succesfully removed by with the animation thing; no need to reload the page now. 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"status": "ok"})
+
+    return redirect(url_for("my_list"))
+
 
 @app.route("/wrapped")
 @login_required
 def wrapped():
-    """
-    Displays a summary of the logged-in user's favorite movies,
-    including total runtime and most common genre.
-    """
     username = session["username"]
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
 
-    # Calculate total runtime
-    total_minutes = sum(int(fav.get("runtime", 0)) for fav in favorites)
-    hours, minutes = divmod(total_minutes, 60)
-    
-    # Collect all genres
+    total_minutes = 0
     all_genres = []
+
+    # Loop through each favorite movie to get details
     for fav in favorites:
+        runtime = fav.get("runtime")
+        if runtime:
+            total_minutes += int(runtime)
+        
         genres = fav.get("genres")
-        if isinstance(genres, str):
-            all_genres.extend([g.strip() for g in genres.split(",")])
-        elif genres:
-            all_genres.extend(genres)
-    
-    # Find most common genre
-    most_common_genre = Counter(all_genres).most_common(1)[0][0] if all_genres else None
+        if genres:
+            # Handle both comma-separated string and list formats
+            if isinstance(genres, str):
+                all_genres.extend([g.strip() for g in genres.split(",")])
+            else:
+                all_genres.extend(genres)
+
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+
+    most_common_genre = None
+    if all_genres:
+        from collections import Counter
+        genre_counts = Counter(all_genres)
+        most_common_genre = genre_counts.most_common(1)[0][0]
 
     return render_template(
         "wrapped.html",
