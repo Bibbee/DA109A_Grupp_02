@@ -58,3 +58,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // activate first slide immediately
   if (slides[0]) activateSlide(slides[0]);
 });
+
+function setImdbRatingBars() {
+  document.querySelectorAll(".rating-fill").forEach((bar) => {
+    const rating = parseFloat(bar.dataset.rating);
+    if (!Number.isFinite(rating)) return;
+
+    const percent = Math.max(0, Math.min(100, rating * 10));
+    bar.style.width = `${percent}%`;
+  });
+}
+
+document.addEventListener("DOMContentLoaded", setImdbRatingBars);

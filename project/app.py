@@ -191,14 +191,19 @@ def search_movies_by_director(director_name, limit=15):
 
 def get_imdb_id_from_tmdb(tmdb_id):
     """Returns IMDb ID for a TMDb movie ID, or None"""
+    if not tmdb_id:
+        return None
+    
     url = f"{BASE_URL}/movie/{tmdb_id}/external_ids"
 
     try:
         response = requests.get(url, params={"api_key": API_KEY}, timeout=10)
-    except requests.RequestException:
+    except requests.RequestException as err:
+        print(f"TMDb error (external_ids): {err}")
         return None
     
     if response.status_code != 200:
+        print(f"TMDb error (external_ids): {response.status_code}")
         return None
     
     return response.json().get("imdb_id")
@@ -497,6 +502,10 @@ def wrapped():
     total_minutes = 0
     all_genres = []
 
+    imdb_ratings = []
+    rated_movies = 0
+    dirty = False # track if we updated favorites with cached IMDb data
+
     # Loop through each favorite movie to get details
     for fav in favorites:
         runtime = fav.get("runtime")
@@ -511,6 +520,40 @@ def wrapped():
             else:
                 all_genres.extend(genres)
 
+        cached_rating = fav.get("imdbRating")
+        if isinstance(cached_rating, (int, float)):
+            imdb_ratings.append(float(cached_rating))
+            rated_movies += 1
+            continue
+
+        tmdb_id = fav.get("id")
+        if not tmdb_id:
+            continue
+
+        imdb_id = fav.get("imdbId")
+        if not imdb_id:
+            imdb_id = get_imdb_id_from_tmdb(tmdb_id)
+            if imdb_id:
+                fav["imdbId"] = imdb_id
+                dirty = True
+
+        if not imdb_id:
+            continue
+
+        rating = get_imdb_rating_from_omdb(imdb_id)
+        if rating is None:
+            continue
+
+        fav["imdbRating"] = rating
+        dirty = True
+        imdb_ratings.append(rating)
+        rated_movies += 1
+
+    # Save cached imdbId/imdbRating back into users.json if we changed anything
+    if user and dirty:
+        user["favorites"] = favorites
+        update_user(user)
+
     hours = total_minutes // 60
     minutes = total_minutes % 60
 
@@ -520,12 +563,28 @@ def wrapped():
         genre_counts = Counter(all_genres)
         most_common_genre = genre_counts.most_common(1)[0][0]
 
+    average_rating = None
+    if imdb_ratings:
+        average_rating = round(sum(imdb_ratings) / len(imdb_ratings), 2)
+
+    taste_label = None
+    if average_rating is not None:
+        if average_rating >= 8.0:
+            taste_label = "Elite taste, you know cinema!"
+        elif average_rating >= 6.0:
+            taste_label = "You have good taste!"
+        else:
+            taste_label = "This is questionable, you need to watch better movies!"
+
     return render_template(
         "wrapped.html",
         hours=hours,
         minutes=minutes,
         most_common_genre=most_common_genre,
-        total_movies=len(favorites)
+        total_movies=len(favorites),
+        average_rating=average_rating,
+        rated_movies=rated_movies,
+        taste_label=taste_label
     )
 
 if __name__ == "__main__":
