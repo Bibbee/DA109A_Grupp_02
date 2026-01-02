@@ -39,6 +39,7 @@
   <span class="dot active"></span>
   <span class="dot"></span>
   <span class="dot"></span>
+  <span class="dot"></span>
 </div>
 
 <section class="slide slide-1" data-slide="1">
@@ -93,6 +94,33 @@
     <p class="sub reveal">
       This genre basically owns your watch history.
     </p>
+  </div>
+</section>
+
+<section class="slide slide-4" data-slide="4">
+  <div class="slide-content">
+    <p class="kicker reveal">Taste check</p>
+
+    <h2 class="reveal">Your average IMDb rating:</h2>
+
+    {% if average_rating is not none %}
+      <div class="rating-big reveal">
+        <span class="pill pill-large">
+          <span class="accent">{{ average_rating }}</span><span class="muted">/10</span>
+        </span>
+      </div>
+
+      <p class="sub reveal">{{ taste_label }}</p>
+      <p class="sub reveal muted">Based on {{ rated_movies}} rated movies.</p>
+
+      <div class="rating-bar reveal" aria-hidden="true">
+        <div class="rating-fill" data-rating="{{ average_rating }}"></div>
+      </div>
+      
+    {% else %}
+      <p class="sub reveal">No IMDb ratings available yet.</p>
+      <p class="hint reveal"> Scroll ↓</p>
+    {% endif %}
 
     <a class="back-btn reveal" href="{{ url_for('movies') }}">Back to Movies</a>
   </div>
