@@ -21,6 +21,9 @@ load_dotenv()
 # json = read and write JSON files (basically our database)
 import json
 
+# Counter = count occurrences of items (for finding most common genre)
+from collections import Counter
+
 # Flask setup 
 app = Flask(__name__)
 
@@ -240,6 +243,34 @@ def get_imdb_rating_from_omdb(imdb_id):
         return float(rating_str)
     except ValueError:
         return None
+
+def get_or_cache_imdb_rating(favorite):
+    """
+    Get IMDb rating for a favorite movie, using cache if available.
+    Returns tuple (rating, was_updated) where rating is float or None.
+    """
+    cached_rating = favorite.get("imdbRating")
+    if isinstance(cached_rating, (int, float)):
+        return float(cached_rating), False
+    
+    tmdb_id = favorite.get("id")
+    if not tmdb_id:
+        return None, False
+    
+    imdb_id = favorite.get("imdbId")
+    if not imdb_id:
+        imdb_id = get_imdb_id_from_tmdb(tmdb_id)
+        if imdb_id:
+            favorite["imdbId"] = imdb_id
+        else:
+            return None, False
+    
+    rating = get_imdb_rating_from_omdb(imdb_id)
+    if rating is None:
+        return None, False
+    
+    favorite["imdbRating"] = rating
+    return rating, True
 
 def load_users():
     """Loads all users from the JSON file. Always returns a list."""
@@ -499,74 +530,38 @@ def wrapped():
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
 
-    total_minutes = 0
+    if not favorites:
+        return render_template("wrapped.html", hours=0, minutes=0, total_movies=0)
+
+    # Get all ratings (using cache where available)
+    ratings_and_updates = [get_or_cache_imdb_rating(fav) for fav in favorites]
+    imdb_ratings = [r for r, _ in ratings_and_updates if r is not None]
+    dirty = any(updated for _, updated in ratings_and_updates)
+
+    # Save if we cached new data
+    if user and dirty:
+        update_user(user)
+
+    # Calculate statistics
+    total_minutes = sum(int(fav.get("runtime", 0)) for fav in favorites if fav.get("runtime"))
+    
+    # Flatten and deduplicate genres
     all_genres = []
-
-    imdb_ratings = []
-    rated_movies = 0
-    dirty = False # track if we updated favorites with cached IMDb data
-
-    # Loop through each favorite movie to get details
     for fav in favorites:
-        runtime = fav.get("runtime")
-        if runtime:
-            total_minutes += int(runtime)
-        
         genres = fav.get("genres")
         if genres:
-            # Handle both comma-separated string and list formats
             if isinstance(genres, str):
                 all_genres.extend([g.strip() for g in genres.split(",")])
             else:
                 all_genres.extend(genres)
-
-        cached_rating = fav.get("imdbRating")
-        if isinstance(cached_rating, (int, float)):
-            imdb_ratings.append(float(cached_rating))
-            rated_movies += 1
-            continue
-
-        tmdb_id = fav.get("id")
-        if not tmdb_id:
-            continue
-
-        imdb_id = fav.get("imdbId")
-        if not imdb_id:
-            imdb_id = get_imdb_id_from_tmdb(tmdb_id)
-            if imdb_id:
-                fav["imdbId"] = imdb_id
-                dirty = True
-
-        if not imdb_id:
-            continue
-
-        rating = get_imdb_rating_from_omdb(imdb_id)
-        if rating is None:
-            continue
-
-        fav["imdbRating"] = rating
-        dirty = True
-        imdb_ratings.append(rating)
-        rated_movies += 1
-
-    # Save cached imdbId/imdbRating back into users.json if we changed anything
-    if user and dirty:
-        user["favorites"] = favorites
-        update_user(user)
-
+    
+    most_common_genre = Counter(all_genres).most_common(1)[0][0] if all_genres else None
+    
     hours = total_minutes // 60
     minutes = total_minutes % 60
-
-    most_common_genre = None
-    if all_genres:
-        from collections import Counter
-        genre_counts = Counter(all_genres)
-        most_common_genre = genre_counts.most_common(1)[0][0]
-
-    average_rating = None
-    if imdb_ratings:
-        average_rating = round(sum(imdb_ratings) / len(imdb_ratings), 2)
-
+    average_rating = round(sum(imdb_ratings) / len(imdb_ratings), 2) if imdb_ratings else None
+    
+    # Determine taste label
     taste_label = None
     if average_rating is not None:
         if average_rating >= 8.0:
@@ -583,7 +578,7 @@ def wrapped():
         most_common_genre=most_common_genre,
         total_movies=len(favorites),
         average_rating=average_rating,
-        rated_movies=rated_movies,
+        rated_movies=len(imdb_ratings),
         taste_label=taste_label
     )
 
