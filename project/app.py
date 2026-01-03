@@ -6,24 +6,17 @@
 # session = remember which user is logged in
 # jsonify = send back small JSON messages (for our toast popup)
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-
 # requests = used to call the TMDB API (ask for movie data)
 import requests
-
 # load_dotenv = reads values from .env (our API_KEY)
 from dotenv import load_dotenv
-
 # os = talk to the operating system, checks if a file exists
 import os
-
 load_dotenv()
-
 # json = read and write JSON files (basically our database)
 import json
-
 # Counter = count occurrences of items (for finding most common genre)
 from collections import Counter
-
 # Flask setup 
 app = Flask(__name__)
 
@@ -33,8 +26,7 @@ BASE_URL = "https://api.themoviedb.org/3" # base URL for TMDB requests
 DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
 OMDB_API_KEY = os.getenv("OMDB_API_KEY") # OMDB API key
 OMDB_BASE_URL = "https://www.omdbapi.com/" # base URL for OMDB requests
-
-    
+  
 def format_runtime(minutes):
     """ 
     This function makes sure that minutes and hours are formatted correctly,
@@ -58,14 +50,12 @@ def format_runtime(minutes):
 
 app.jinja_env.filters['format_runtime'] = format_runtime
 
-
 def build_poster_url(poster_path, size="w342"):
     
     # This function builds a readable image URL from TMBDb's image server. 
     if not poster_path:
         return None
     return f"https://image.tmdb.org/t/p/{size}{poster_path}" 
-
 
 def get_director(movie_id):
     """
@@ -85,8 +75,6 @@ def get_director(movie_id):
 
     return None
 
-
-
 def get_movie_details(movie_id):
     """
     This function builds an URL to the exact movie in question with all its details and
@@ -101,8 +89,6 @@ def get_movie_details(movie_id):
     data = res.json()
     genres = [genre.get("name") for genre in data.get("genres", [])]
     return {"runtime": data.get("runtime"), "genres": genres}
-
-
 
 def build_movie_dict(movie_data, director=None):
     """
@@ -122,7 +108,6 @@ def build_movie_dict(movie_data, director=None):
         "runtime": details.get("runtime"),
         "genres": details.get("genres"),
     }
-
 
 def search_movies(query, limit=15):
     """Searches TMDb for movies matching a title query."""
@@ -187,11 +172,9 @@ def search_movies_by_director(director_name, limit=15):
     
     crew = response.json().get("crew", [])
     directed = [movie for movie in crew if movie.get("job") == "Director"][:limit]
-
     return [build_movie_dict(movie, director=director_display_name) for movie in directed]
 
 # ---------- Helper functions for JSON "DB" ----------
-
 def get_imdb_id_from_tmdb(tmdb_id):
     """Returns IMDb ID for a TMDb movie ID, or None"""
     if not tmdb_id:
@@ -285,7 +268,6 @@ def load_users():
     
     return data if isinstance(data, list) else []
 
-
 def save_users(users):
     """Saves the full users list to the JSON file."""
     with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -316,9 +298,7 @@ def update_user(user):
             break
     save_users(users)
 
-
 # ---------- Auth routes ----------
-
 @app.route("/", methods=["GET", "POST"])
 def login():
     # If already logged in, go directly to movies
@@ -378,7 +358,6 @@ def logout():
     return redirect(url_for("login"))
 
 # ---------- Protected movies route ----------
-
 def login_required(func):
     from functools import wraps
 
@@ -389,7 +368,6 @@ def login_required(func):
         return func(*args, **kwargs)
 
     return wrapper
-
 
 @app.route("/movies", methods=["GET", "POST"])
 @login_required
