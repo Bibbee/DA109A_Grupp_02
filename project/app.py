@@ -396,13 +396,16 @@ def login_required(func):
 @login_required
 def movies():
     query = request.args.get("q", "").strip()
-    search_type = request.args.get("type", "film").strip()  # Default to "film"
+    search_type = request.args.get("type", "film").strip()
     
-    # Choose search function based on type
-    if search_type == "director":
-        movies = search_movies_by_director(query)
-    else:
-        movies = search_movies(query)
+    # Map search types to search functions
+    search_functions = {
+        "director": search_movies_by_director,
+        "film": search_movies
+    }
+    
+    search_func = search_functions.get(search_type, search_movies)
+    movies_results = search_func(query)
     
     username = session["username"]
     user = find_user(username)
@@ -410,82 +413,55 @@ def movies():
 
     return render_template(
         "movies.html",
-        movies=movies,
+        movies=movies_results,
         query=query,
         username=username,
         favorites=favorites,
     )
 
-
-# ---------- Add favorite ----------
-
 @app.route("/add_favorite", methods=["POST"])
 @login_required
 def add_favorite():
-    movie_id = request.form.get("id")
-    title = request.form.get("title")
-    poster_url = request.form.get("poster_url")
-    release_date = request.form.get("release_date")
-    rating = request.form.get("rating")
-    director = request.form.get("director")
-    runtime = request.form.get("runtime")
-    genres = request.form.get("genres")
-
     username = session["username"]
     user = find_user(username)
+    
     if not user:
-        # om nåt är helt fel, skicka 400 (bad request, ogiltig användare)
         return jsonify({"status": "error", "message": "User not found"}), 400
 
-    if "favorites" not in user:
-        user["favorites"] = []
-
+    movie_id = request.form.get("id")
+    user.setdefault("favorites", [])
+    
+    # Only add if not already in favorites
     if not any(str(f["id"]) == str(movie_id) for f in user["favorites"]):
-        user["favorites"].append({
-            "id": movie_id,
-            "title": title,
-            "poster_url": poster_url,
-            "release_date": release_date,
-            "rating": rating,
-            "director": director,
-            "runtime": runtime,
-            "genres": genres,
-        })
+        movie_fields = ["id", "title", "poster_url", "release_date", "rating", "director", "runtime", "genres"]
+        user["favorites"].append({field: request.form.get(field) for field in movie_fields})
         update_user(user)
 
-    # Om det är en AJAX-request → skicka JSON
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify({"status": "ok"})
+    # Return response based on request type
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    return jsonify({"status": "ok"}) if is_ajax else redirect(url_for("movies"))
 
-    # fallback om man skulle POST:a utan JS
-    return redirect(url_for("movies"))
-
-#--- NEW ROUTE FOR: MY LIST---
 @app.route("/my-list", methods=["GET"])
 @login_required
 def my_list():
-
-    # Gathers the username of the user.
     username = session["username"]
-
-    # This one loads user data from our JSON
     user = find_user(username)
     favorites = user.get("favorites", []) if user else []
     
-    # Get sort parameter from query string, default to "added"
     sort_by = request.args.get("sort", "added")
     reverse_sort = request.args.get("reverse", "false").lower() == "true"
     
-    # Sort the favorites based on the selected option
-    if sort_by == "rating":
-        favorites = sorted(favorites, key=lambda x: float(x.get("rating", 0)), reverse=not reverse_sort)
-    elif sort_by == "release":
-        favorites = sorted(favorites, key=lambda x: x.get("release_date", ""), reverse=not reverse_sort)
-    # "added" keeps the original order (no sorting needed, but can be reversed)
+    # Define sort key functions
+    sort_keys = {
+        "rating": lambda x: float(x.get("rating", 0)),
+        "release": lambda x: x.get("release_date", "")
+    }
+    
+    if sort_by in sort_keys:
+        favorites = sorted(favorites, key=sort_keys[sort_by], reverse=not reverse_sort)
     elif reverse_sort:
         favorites = list(reversed(favorites))
 
-    # Render the my_list.html with the user's current info
     return render_template(
         "my_list.html",
         username=username,
@@ -494,14 +470,10 @@ def my_list():
         reverse_sort=reverse_sort,
     )
 
-#--- REMOVING MOVIES ROUTE---
 @app.route("/remove_favorite", methods=["POST"])
 @login_required
 def remove_favorite():
-    # Decide which movie to remove based on id.
     movie_id = request.form.get("id")
-
-    # Gathers username of the logged in user
     username = session["username"]
     user = find_user(username)
 
@@ -510,17 +482,14 @@ def remove_favorite():
             return jsonify({"status": "error", "message": "User not found"}), 400
         return redirect(url_for("my_list"))
 
-    
-    favorites = user.get("favorites", []) # All the current favorite movies
-    new_favorites = [f for f in favorites if str(f.get("id")) != str(movie_id)]
-    user["favorites"] = new_favorites
-    update_user(user) # Save the changes to JSON
+    # Remove the movie from favorites
+    user["favorites"] = [f for f in user.get("favorites", []) if str(f.get("id")) != str(movie_id)]
+    update_user(user)
 
-    # Javascript call: ensures the cards are succesfully removed by with the animation thing; no need to reload the page now. 
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify({"status": "ok"})
+    # Return appropriate response based on request type
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    return jsonify({"status": "ok"}) if is_ajax else redirect(url_for("my_list"))
 
-    return redirect(url_for("my_list"))
 
 
 @app.route("/wrapped")
