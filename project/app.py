@@ -377,7 +377,6 @@ def logout():
     session.pop("username", None)
     return redirect(url_for("login"))
 
-
 # ---------- Protected movies route ----------
 
 def login_required(func):
@@ -489,8 +488,6 @@ def remove_favorite():
     # Return appropriate response based on request type
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     return jsonify({"status": "ok"}) if is_ajax else redirect(url_for("my_list"))
-
-
 
 @app.route("/wrapped")
 @login_required
