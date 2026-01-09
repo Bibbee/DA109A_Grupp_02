@@ -90,27 +90,37 @@ def get_movie_details(movie_id):
     genres = [genre.get("name") for genre in data.get("genres", [])]
     return {"runtime": data.get("runtime"), "genres": genres}
 
-def build_movie_dict(movie_data, director=None):
+def build_movie_dict(movie_data, director=None, include_details=False):
     """
-    This function makes sure that a clean movie dictionary is made with only
-    the necessary data to display in the movie cards in our HTML .
+    Build a movie dictionary. If include_details=True, fetches runtime/genres/director.
+    For search results, this should be False to avoid unnecessary API calls.
     """
     movie_id = movie_data.get("id")
-    details = get_movie_details(movie_id)
     
-    return {
+    movie_dict = {
         "id": movie_id,
         "title": movie_data.get("title"),
         "release_date": movie_data.get("release_date"),
         "rating": movie_data.get("vote_average"),
         "poster_url": build_poster_url(movie_data.get("poster_path")),
-        "director": director or get_director(movie_id),
-        "runtime": details.get("runtime"),
-        "genres": details.get("genres"),
     }
+    
+    # Only fetch expensive details if explicitly requested
+    if include_details:
+        details = get_movie_details(movie_id)
+        movie_dict["director"] = director or get_director(movie_id)
+        movie_dict["runtime"] = details.get("runtime")
+        movie_dict["genres"] = details.get("genres")
+    else:
+        # Use data from search results if available
+        movie_dict["director"] = director
+        movie_dict["runtime"] = movie_data.get("runtime")
+        movie_dict["genres"] = movie_data.get("genres", [])
+    
+    return movie_dict
 
 def search_movies(query, limit=15):
-    """Searches TMDb for movies matching a title query."""
+    """Searches TMDb for movies matching a title query. Returns minimal data for speed."""
     if not query:
         return []
 
@@ -127,7 +137,8 @@ def search_movies(query, limit=15):
         return []
     
     results = response.json().get("results", [])[:limit]
-    return [build_movie_dict(movie) for movie in results]
+    # Don't fetch details here - too slow. Return minimal data for card display
+    return [build_movie_dict(movie, include_details=False) for movie in results]
 
 def search_movies_by_director(director_name, limit=15):
     """Returns movies directed by a given person (MVP: first match)."""
@@ -172,7 +183,8 @@ def search_movies_by_director(director_name, limit=15):
     
     crew = response.json().get("crew", [])
     directed = [movie for movie in crew if movie.get("job") == "Director"][:limit]
-    return [build_movie_dict(movie, director=director_display_name) for movie in directed]
+    # Don't fetch details here - too slow. Return minimal data for card display
+    return [build_movie_dict(movie, director=director_display_name, include_details=False) for movie in directed]
 
 # ---------- Helper functions for JSON "DB" ----------
 def get_imdb_id_from_tmdb(tmdb_id):
