@@ -6,7 +6,7 @@
 # session = remember which user is logged in
 # jsonify = send back small JSON messages (for our toast popup)
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-# requests = used to call the TMDB API (ask for movie data)
+# requests = used to call our Movie API and other external APIs
 import requests
 # load_dotenv = reads values from .env (our API_KEY)
 from dotenv import load_dotenv
@@ -21,11 +21,12 @@ from collections import Counter
 app = Flask(__name__)
 
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
-API_KEY = os.getenv("API_KEY") # TMDB API key
-BASE_URL = "https://api.themoviedb.org/3" # base URL for TMDB requests
 DB_FILE = "users.json" # JSON file where we store users and favorites (for now)
 OMDB_API_KEY = os.getenv("OMDB_API_KEY") # OMDB API key
 OMDB_BASE_URL = "https://www.omdbapi.com/" # base URL for OMDB requests
+
+# Movie API URL (FastAPI backend)
+MOVIE_API_URL = os.getenv("MOVIE_API_URL", "http://127.0.0.1:5001")
   
 def format_runtime(minutes):
     """ 
@@ -50,129 +51,79 @@ def format_runtime(minutes):
 
 app.jinja_env.filters['format_runtime'] = format_runtime
 
-def build_poster_url(poster_path, size="w342"):
-    
-    # This function builds a readable image URL from TMBDb's image server. 
-    if not poster_path:
-        return None
-    return f"https://image.tmdb.org/t/p/{size}{poster_path}" 
 
-def get_director(movie_id):
-    """
-    This uses the movie id to get access to TMDb's credits endpoint to
-    find the specific director and returns the name of the director.
-    """
-
-    url = f"{BASE_URL}/movie/{movie_id}/credits"
-    res = requests.get(url, params={"api_key": API_KEY})
-
-    if res.status_code != 200:
-        return None
-
-    for person in res.json().get("crew", []):
-        if person.get("job") == "Director":
-            return person.get("name")
-
-    return None
-
-def get_movie_details(movie_id):
-    """
-    This function builds an URL to the exact movie in question with all its details and
-    returns genres and runtime.
-    """
-    url = f"{BASE_URL}/movie/{movie_id}"
-    res = requests.get(url, params={"api_key": API_KEY})
-
-    if res.status_code != 200:
-        return {"runtime": None, "genres": []}
-
-    data = res.json()
-    genres = [genre.get("name") for genre in data.get("genres", [])]
-    return {"runtime": data.get("runtime"), "genres": genres}
-
-def build_movie_dict(movie_data, director=None):
-    """
-    This function makes sure that a clean movie dictionary is made with only
-    the necessary data to display in the movie cards in our HTML .
-    """
-    movie_id = movie_data.get("id")
-    details = get_movie_details(movie_id)
-    
-    return {
-        "id": movie_id,
-        "title": movie_data.get("title"),
-        "release_date": movie_data.get("release_date"),
-        "rating": movie_data.get("vote_average"),
-        "poster_url": build_poster_url(movie_data.get("poster_path")),
-        "director": director or get_director(movie_id),
-        "runtime": details.get("runtime"),
-        "genres": details.get("genres"),
-    }
+# ============== MOVIE API CLIENT FUNCTIONS ==============
+# These functions call the FastAPI backend instead of TMDB directly
 
 def search_movies(query, limit=15):
-    """Searches TMDb for movies matching a title query."""
+    """Search movies via the Movie API."""
     if not query:
         return []
-
-    url = f"{BASE_URL}/search/movie"
-
-    try:
-        response = requests.get(url, params = {"api_key": API_KEY, "query": query}, timeout=10)
-    except requests.RequestException as err:
-        print(f"TMDb-fel (search/movie): {err}")
-        return []
-
-    if response.status_code != 200:
-        print(f"TMDb-fel (search/movie): {response.status_code}")
-        return []
     
-    results = response.json().get("results", [])[:limit]
-    return [build_movie_dict(movie) for movie in results]
+    try:
+        response = requests.get(
+            f"{MOVIE_API_URL}/api/search",
+            params={"q": query, "type": "film", "limit": limit},
+            timeout=30
+        )
+        if response.status_code == 200:
+            data = response.json()
+            # Convert API response to format expected by templates
+            return [_api_movie_to_template(m) for m in data.get("results", [])]
+    except requests.RequestException as err:
+        print(f"Movie API error: {err}")
+    
+    return []
+
 
 def search_movies_by_director(director_name, limit=15):
-    """Returns movies directed by a given person (MVP: first match)."""
+    """Search movies by director via the Movie API."""
     if not director_name:
         return []
-
-    # First, search for the director
-    url = f"{BASE_URL}/search/person"
+    
     try:
-        response = requests.get(url, params={"api_key": API_KEY, "query": director_name}, timeout=10)
+        response = requests.get(
+            f"{MOVIE_API_URL}/api/search",
+            params={"q": director_name, "type": "director", "limit": limit},
+            timeout=30
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return [_api_movie_to_template(m) for m in data.get("results", [])]
     except requests.RequestException as err:
-        print(f"TMDb-fel (seach/person): {err}")
-        return []
+        print(f"Movie API error: {err}")
     
-    if response.status_code != 200:
-        print(f"TMDb-fel (search/person): {response.status_code}")
-        return []
-    
-    persons = response.json().get("results", [])
-    if not persons:
-        return []
-    
-    director = persons[0]  # MVP: ta första matchen
-    director_id = director.get("id")
-    director_display_name = director.get("name") or director_name
+    return []
 
-    if not director_id:
-        return []
-    
-    # Get all movies directed by this person
-    url = f"{BASE_URL}/person/{director_id}/movie_credits"
 
+def get_movie_from_api(movie_id):
+    """Get a single movie from the Movie API."""
     try:
-        response = requests.get(url, params={"api_key": API_KEY}, timeout=10)
+        response = requests.get(
+            f"{MOVIE_API_URL}/api/movie/{movie_id}",
+            timeout=10
+        )
+        if response.status_code == 200:
+            return _api_movie_to_template(response.json())
     except requests.RequestException as err:
-        print(f"TMDb-fel (movie_credits): {err}")
-        return []
+        print(f"Movie API error: {err}")
     
-    if response.status_code != 200:
-        print(f"TMDb-fel (movie_credits): {response.status_code}")
-        return []
-    
-    crew = response.json().get("crew", [])
-    directed = [movie for movie in crew if movie.get("job") == "Director"][:limit]
-    return [build_movie_dict(movie, director=director_display_name) for movie in directed]
+    return None
+
+
+def _api_movie_to_template(api_movie):
+    """Convert API response format to template format (camelCase → snake_case)."""
+    return {
+        "id": api_movie.get("id"),
+        "title": api_movie.get("title"),
+        "release_date": api_movie.get("releaseDate"),
+        "rating": api_movie.get("rating"),
+        "poster_url": api_movie.get("posterUrl"),
+        "director": api_movie.get("director"),
+        "runtime": api_movie.get("runtime"),
+        "genres": api_movie.get("genres", []),
+    }
+
 
 # ---------- Helper functions for JSON "DB" ----------
 def get_imdb_id_from_tmdb(tmdb_id):
