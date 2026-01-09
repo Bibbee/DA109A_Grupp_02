@@ -75,40 +75,6 @@ def get_director(movie_id):
 
     return None
 
-def get_movie_with_details(movie_id):
-    """
-    Fetch a complete movie with all details (runtime, genres, credits) in ONE call.
-    Uses append_to_response to get credits without an extra API call.
-    Returns dict with all movie info, or None if error.
-    """
-    url = f"{BASE_URL}/movie/{movie_id}"
-    try:
-        res = requests.get(url, params={"api_key": API_KEY, "append_to_response": "credits"}, timeout=10)
-    except requests.RequestException as err:
-        print(f"TMDb error: {err}")
-        return None
-
-    if res.status_code != 200:
-        return None
-
-    data = res.json()
-    
-    # Extract genres
-    genres = [genre.get("name") for genre in data.get("genres", [])]
-    
-    # Extract director from credits
-    director = None
-    for person in data.get("credits", {}).get("crew", []):
-        if person.get("job") == "Director":
-            director = person.get("name")
-            break
-    
-    return {
-        "runtime": data.get("runtime"),
-        "genres": genres,
-        "director": director
-    }
-
 def get_movie_details(movie_id):
     """
     This function builds an URL to the exact movie in question with all its details and
@@ -126,7 +92,7 @@ def get_movie_details(movie_id):
 
 def build_movie_dict(movie_data, director=None, include_details=False):
     """
-    Build a movie dictionary. If include_details=True, fetches runtime/genres/director in ONE call.
+    Build a movie dictionary. If include_details=True, fetches runtime/genres/director.
     For search results, this should be False to avoid unnecessary API calls.
     """
     movie_id = movie_data.get("id")
@@ -141,16 +107,10 @@ def build_movie_dict(movie_data, director=None, include_details=False):
     
     # Only fetch expensive details if explicitly requested
     if include_details:
-        # Use optimized function that fetches all details in ONE call
-        details = get_movie_with_details(movie_id)
-        if details:
-            movie_dict["director"] = details.get("director")
-            movie_dict["runtime"] = details.get("runtime")
-            movie_dict["genres"] = details.get("genres")
-        else:
-            movie_dict["director"] = None
-            movie_dict["runtime"] = None
-            movie_dict["genres"] = []
+        details = get_movie_details(movie_id)
+        movie_dict["director"] = director or get_director(movie_id)
+        movie_dict["runtime"] = details.get("runtime")
+        movie_dict["genres"] = details.get("genres")
     else:
         # Use data from search results if available
         movie_dict["director"] = director
@@ -160,7 +120,7 @@ def build_movie_dict(movie_data, director=None, include_details=False):
     return movie_dict
 
 def search_movies(query, limit=15):
-    """Searches TMDb for movies matching a title query with all details in ONE call per movie."""
+    """Searches TMDb for movies matching a title query."""
     if not query:
         return []
 
@@ -177,8 +137,7 @@ def search_movies(query, limit=15):
         return []
     
     results = response.json().get("results", [])[:limit]
-    # Fetch full details for each movie (runtime, genres, director) in ONE call per movie
-    return [build_movie_dict(movie, include_details=True) for movie in results]
+    return [build_movie_dict(movie) for movie in results]
 
 def search_movies_by_director(director_name, limit=15):
     """Returns movies directed by a given person (MVP: first match)."""
@@ -223,8 +182,7 @@ def search_movies_by_director(director_name, limit=15):
     
     crew = response.json().get("crew", [])
     directed = [movie for movie in crew if movie.get("job") == "Director"][:limit]
-    # Fetch full details for each movie in ONE call per movie
-    return [build_movie_dict(movie, director=director_display_name, include_details=True) for movie in directed]
+    return [build_movie_dict(movie, director=director_display_name) for movie in directed]
 
 # ---------- Helper functions for JSON "DB" ----------
 def get_imdb_id_from_tmdb(tmdb_id):
