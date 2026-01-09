@@ -19,27 +19,36 @@ if not API_KEY:
     exit(1)
 
 def get_movie_details(movie_id):
-    """Fetch full movie details from TMDB including runtime and genres."""
+    """Fetch full movie details from TMDB including runtime, genres, and director (in ONE call)."""
     url = f"{BASE_URL}/movie/{movie_id}"
-    params = {"api_key": API_KEY}
+    params = {"api_key": API_KEY, "append_to_response": "credits"}
     
     try:
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             data = response.json()
             genres = [g.get("name") for g in data.get("genres", [])]
+            
+            # Extract director from credits
+            director = None
+            for person in data.get("credits", {}).get("crew", []):
+                if person.get("job") == "Director":
+                    director = person.get("name")
+                    break
+            
             return {
                 "runtime": data.get("runtime"),
-                "genres": ", ".join(genres) if genres else None
+                "genres": ", ".join(genres) if genres else None,
+                "director": director
             }
     except Exception as e:
         print(f"Error fetching details for movie {movie_id}: {e}")
     
-    return {"runtime": None, "genres": None}
+    return {"runtime": None, "genres": None, "director": None}
 
 
 def update_user_movies(username):
-    """Update all movies for a specified user with runtime and genres."""
+    """Update all movies for a specified user with runtime, genres, and director."""
     
     # Read users.json
     with open("users.json", "r", encoding="utf-8") as f:
@@ -58,7 +67,7 @@ def update_user_movies(username):
     
     favorites = target_user.get("favorites", [])
     print(f"Found {len(favorites)} movies in {username}'s favorites")
-    print("Fetching runtime and genres from TMDB...\n")
+    print("Fetching runtime, genres, and director from TMDB...\n")
     
     updated_count = 0
     
@@ -66,9 +75,9 @@ def update_user_movies(username):
         movie_id = movie.get("id")
         title = movie.get("title")
         
-        # Skip if already has runtime and genres
-        if movie.get("runtime") and movie.get("genres"):
-            print(f"[{i}/{len(favorites)}] {title} - Already has runtime and genres, skipping")
+        # Skip if already has runtime, genres, and director
+        if movie.get("runtime") and movie.get("genres") and movie.get("director"):
+            print(f"[{i}/{len(favorites)}] {title} - Already has all info, skipping")
             continue
         
         print(f"[{i}/{len(favorites)}] Updating: {title}...", end=" ")
@@ -82,8 +91,11 @@ def update_user_movies(username):
         if details["genres"]:
             movie["genres"] = details["genres"]
         
-        if details["runtime"] or details["genres"]:
-            print(f"✓ (Runtime: {details['runtime']} min, Genres: {details['genres']})")
+        if details["director"]:
+            movie["director"] = details["director"]
+        
+        if details["runtime"] or details["genres"] or details["director"]:
+            print(f"✓ (Runtime: {details['runtime']} min, Genres: {details['genres']}, Director: {details['director']})")
         else:
             print("✗ Could not fetch details")
     
@@ -96,5 +108,5 @@ def update_user_movies(username):
 
 if __name__ == "__main__":
     # Allow specifying username as command line argument, default to "123"
-    username = sys.argv[1] if len(sys.argv) > 1 else "123"
+    username = sys.argv[1] if len(sys.argv) > 1 else "rList"
     update_user_movies(username)
