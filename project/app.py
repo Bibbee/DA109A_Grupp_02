@@ -491,7 +491,6 @@ def remove_favorite():
 
     return redirect(url_for("my_list"))
 
-
 @app.route("/wrapped")
 @login_required
 def wrapped():
